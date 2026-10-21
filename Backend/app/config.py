@@ -1,6 +1,5 @@
-from typing import List, Union
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, field_validator
 
 
 class Settings(BaseSettings):
@@ -15,11 +14,12 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
     ]
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hookrelay"
 
-    SECRET_KEY: str = "default_secret_key_please_change"
+    SECRET_KEY: str = "hookrelay_super_secret_jwt_key_2026_dev_secure_token_min32bytes"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 

@@ -1,0 +1,368 @@
+import time
+import random
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone, timedelta
+import httpx
+from fastapi import HTTPException, status
+from sqlalchemy import select, func, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.delivery import Delivery
+from app.models.event import Event
+from app.models.endpoint import Endpoint
+from app.services.endpoint_service import get_user_endpoint_by_id
+
+# Retry schedule configuration
+MAX_DELIVERY_ATTEMPTS = 5
+
+# Default backoff delays in seconds: 1m, 5m, 30m, 2h
+BACKOFF_SCHEDULE_SECONDS = [60, 300, 1800, 7200]
+TEST_BACKOFF_SCHEDULE_SECONDS = [1, 2, 3, 5]
+
+
+def calculate_next_retry(attempt_count: int, fast_mode: bool = False) -> datetime:
+    """
+    Calculate next attempt timestamp using exponential backoff schedule with jitter.
+    """
+    schedule = TEST_BACKOFF_SCHEDULE_SECONDS if fast_mode else BACKOFF_SCHEDULE_SECONDS
+    idx = min(attempt_count - 1, len(schedule) - 1)
+    base_delay = schedule[max(0, idx)]
+    # Add +/- 15% random jitter to avoid thundering herd
+    jitter_factor = random.uniform(0.85, 1.15)
+    delay_seconds = max(1, int(base_delay * jitter_factor))
+    return datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
+
+
+async def get_deliveries_for_event(
+    db: AsyncSession,
+    user_id: str,
+    event_id: str,
+) -> List[Delivery]:
+    """
+    Retrieve all delivery records for a specific event with ownership check.
+    Returns 404 if event does not exist or belongs to another user.
+    """
+    # Enforce ownership through join on Endpoint
+    stmt = (
+        select(Event)
+        .join(Endpoint, Event.endpoint_id == Endpoint.id)
+        .where(
+            Event.id == event_id,
+            Endpoint.user_id == user_id,
+        )
+    )
+    event_result = await db.execute(stmt)
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found",
+        )
+
+    deliveries_stmt = (
+        select(Delivery)
+        .where(Delivery.event_id == event_id)
+        .order_by(Delivery.created_at.desc())
+    )
+    del_result = await db.execute(deliveries_stmt)
+    return list(del_result.scalars().all())
+
+
+async def replay_event_delivery(
+    db: AsyncSession,
+    user_id: str,
+    event_id: str,
+) -> Delivery:
+    """
+    Reset a failed or delivered event so the worker dispatches it again immediately.
+    Enforces ownership check.
+    """
+    # Verify ownership
+    stmt = (
+        select(Event)
+        .join(Endpoint, Event.endpoint_id == Endpoint.id)
+        .where(
+            Event.id == event_id,
+            Endpoint.user_id == user_id,
+        )
+    )
+    event = (await db.execute(stmt)).scalar_one_or_none()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found",
+        )
+
+    # Find the most recent delivery or create one
+    del_stmt = (
+        select(Delivery)
+        .where(Delivery.event_id == event_id)
+        .order_by(Delivery.created_at.desc())
+    )
+    delivery = (await db.execute(del_stmt)).scalars().first()
+
+    now = datetime.now(timezone.utc)
+    if delivery:
+        delivery.status = "pending"
+        delivery.attempt_count = 0
+        delivery.next_attempt_at = now
+        delivery.last_error = None
+        delivery.last_status_code = None
+    else:
+        delivery = Delivery(
+            event_id=event_id,
+            status="pending",
+            attempt_count=0,
+            next_attempt_at=now,
+        )
+        db.add(delivery)
+
+    await db.commit()
+    await db.refresh(delivery)
+
+    # Broadcast replay delivery status via WebSocket
+    try:
+        from app.services.websocket_manager import ws_manager
+        await ws_manager.notify_delivery_updated(
+            user_id=str(user_id),
+            delivery_data={
+                "id": str(delivery.id),
+                "event_id": str(event.id),
+                "endpoint_id": str(event.endpoint_id),
+                "status": delivery.status,
+                "attempt_count": delivery.attempt_count,
+                "last_status_code": delivery.last_status_code,
+                "last_error": delivery.last_error,
+                "latency_ms": delivery.latency_ms,
+                "next_attempt_at": delivery.next_attempt_at.isoformat() if delivery.next_attempt_at else None,
+                "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
+            },
+        )
+    except Exception:
+        pass
+
+    return delivery
+
+
+async def replay_failed_endpoint_deliveries(
+    db: AsyncSession,
+    user_id: str,
+    endpoint_id: str,
+) -> int:
+    """
+    Bulk replay: Reset all failed deliveries for an endpoint to pending.
+    Enforces ownership check.
+    """
+    await get_user_endpoint_by_id(db, user_id, endpoint_id)
+
+    # Query all failed deliveries belonging to this endpoint
+    stmt = (
+        select(Delivery)
+        .join(Event, Delivery.event_id == Event.id)
+        .where(
+            Event.endpoint_id == endpoint_id,
+            Delivery.status == "failed",
+        )
+    )
+    result = await db.execute(stmt)
+    deliveries = result.scalars().all()
+
+    now = datetime.now(timezone.utc)
+    count = 0
+    for d in deliveries:
+        d.status = "pending"
+        d.attempt_count = 0
+        d.next_attempt_at = now
+        d.last_error = None
+        d.last_status_code = None
+        count += 1
+
+    await db.commit()
+    return count
+
+
+async def send_webhook_http(
+    url: str,
+    payload: Any,
+    headers: Dict[str, str],
+    timeout: float = 10.0,
+) -> httpx.Response:
+    """Send outbound HTTP request with timeout."""
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        return await client.post(url, json=payload, headers=headers)
+
+
+async def forward_single_delivery(
+    db: AsyncSession,
+    delivery_id: str,
+    fast_retry_mode: bool = False,
+) -> Optional[Delivery]:
+    """
+    Execute HTTP forwarding with 10s timeout, update attempt count,
+    record status code, latency, and schedule retries on failure.
+    """
+    # Fetch delivery with event and endpoint
+    stmt = (
+        select(Delivery, Event, Endpoint)
+        .join(Event, Delivery.event_id == Event.id)
+        .join(Endpoint, Event.endpoint_id == Endpoint.id)
+        .where(Delivery.id == delivery_id)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+
+    if not row:
+        return None
+
+    delivery, event, endpoint = row
+
+    if not endpoint.is_active:
+        # Endpoint was disabled by user; mark as failed
+        delivery.status = "failed"
+        delivery.last_error = "Target endpoint is paused / inactive"
+        delivery.next_attempt_at = None
+        await db.commit()
+        return delivery
+
+    # Prepare forwarding headers
+    hop_by_hop = {"host", "content-length", "transfer-encoding", "connection"}
+    forward_headers: Dict[str, str] = {
+        k: str(v)
+        for k, v in event.headers.items()
+        if k.lower() not in hop_by_hop
+    }
+    forward_headers["Content-Type"] = "application/json"
+    forward_headers["X-HookRelay-Delivery"] = delivery.id
+    forward_headers["X-HookRelay-Event"] = event.id
+
+    # Execute HTTP POST request with 10s timeout
+    start_time = time.perf_counter()
+    delivery.attempt_count += 1
+
+    try:
+        response = await send_webhook_http(
+            url=endpoint.target_url,
+            payload=event.body,
+            headers=forward_headers,
+            timeout=10.0,
+        )
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        delivery.latency_ms = latency_ms
+        delivery.last_status_code = response.status_code
+
+        if 200 <= response.status_code < 300:
+            delivery.status = "delivered"
+            delivery.next_attempt_at = None
+            delivery.last_error = None
+        else:
+            _handle_failure(
+                delivery=delivery,
+                error_msg=f"Destination returned HTTP {response.status_code}",
+                fast_mode=fast_retry_mode,
+            )
+
+    except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        delivery.latency_ms = latency_ms
+        delivery.last_status_code = None
+        _handle_failure(
+            delivery=delivery,
+            error_msg=f"Connection failed: {exc}",
+            fast_mode=fast_retry_mode,
+        )
+    except httpx.TimeoutException as exc:
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        delivery.latency_ms = latency_ms
+        delivery.last_status_code = None
+        _handle_failure(
+            delivery=delivery,
+            error_msg=f"Request timed out after 10 seconds: {exc}",
+            fast_mode=fast_retry_mode,
+        )
+    except Exception as exc:
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        delivery.latency_ms = latency_ms
+        delivery.last_status_code = None
+        _handle_failure(
+            delivery=delivery,
+            error_msg=f"Delivery error: {exc}",
+            fast_mode=fast_retry_mode,
+        )
+
+    await db.commit()
+    await db.refresh(delivery)
+
+    # Broadcast delivery update to endpoint owner via WebSocket in real time
+    try:
+        from app.services.websocket_manager import ws_manager
+        await ws_manager.notify_delivery_updated(
+            user_id=str(endpoint.user_id),
+            delivery_data={
+                "id": str(delivery.id),
+                "event_id": str(event.id),
+                "endpoint_id": str(endpoint.id),
+                "status": delivery.status,
+                "attempt_count": delivery.attempt_count,
+                "last_status_code": delivery.last_status_code,
+                "last_error": delivery.last_error,
+                "latency_ms": delivery.latency_ms,
+                "next_attempt_at": delivery.next_attempt_at.isoformat() if delivery.next_attempt_at else None,
+                "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
+            },
+        )
+    except Exception:
+        pass
+
+    return delivery
+
+
+def _handle_failure(delivery: Delivery, error_msg: str, fast_mode: bool = False) -> None:
+    """Schedule next retry with backoff, or transition to failed if attempts exhausted."""
+    delivery.last_error = error_msg
+    if delivery.attempt_count >= MAX_DELIVERY_ATTEMPTS:
+        delivery.status = "failed"
+        delivery.next_attempt_at = None
+    else:
+        delivery.status = "retrying"
+        delivery.next_attempt_at = calculate_next_retry(
+            delivery.attempt_count,
+            fast_mode=fast_mode,
+        )
+
+
+async def fetch_and_process_due_deliveries(
+    db: AsyncSession,
+    batch_size: int = 10,
+    fast_mode: bool = False,
+) -> int:
+    """
+    Pick due deliveries using SELECT ... FOR UPDATE SKIP LOCKED
+    and dispatch them.
+    """
+    now = datetime.now(timezone.utc)
+    stmt = (
+        select(Delivery.id)
+        .where(
+            Delivery.status.in_(["pending", "retrying"]),
+            Delivery.next_attempt_at <= now,
+        )
+        .order_by(Delivery.next_attempt_at.asc())
+        .limit(batch_size)
+    )
+
+    # In PostgreSQL, use SKIP LOCKED to allow concurrent workers without contention
+    try:
+        stmt = stmt.with_for_update(skip_locked=True)
+    except Exception:
+        pass
+
+    result = await db.execute(stmt)
+    due_ids = list(result.scalars().all())
+
+    count = 0
+    for delivery_id in due_ids:
+        await forward_single_delivery(db, delivery_id, fast_retry_mode=fast_mode)
+        count += 1
+
+    return count

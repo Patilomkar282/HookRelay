@@ -32,3 +32,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+
+
+async def init_db() -> None:
+    """Create all registered tables in the database if they do not exist."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
