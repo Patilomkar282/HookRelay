@@ -154,9 +154,10 @@ export const CreateEndpointModal = ({ isOpen, onClose, onSubmit, isLoading }) =>
     }
   };
 
-  const baseUrl = window.location.origin.includes('5173')
-    ? 'http://localhost:8000'
-    : window.location.origin;
+  const apiBase = import.meta.env.VITE_API_URL;
+  const baseUrl = apiBase
+    ? apiBase.replace(/\/+$/, '')
+    : (window.location.origin.includes('5173') ? 'http://localhost:8000' : window.location.origin);
 
   // VIEW 2: Show Secret Once Modal View
   if (createdEndpoint) {

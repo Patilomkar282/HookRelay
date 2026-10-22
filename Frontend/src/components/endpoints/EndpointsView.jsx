@@ -152,9 +152,10 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
   const activeCount = endpoints.filter((e) => e.is_active).length;
   const totalEvents = endpoints.reduce((acc, curr) => acc + (curr.events_count || 0), 0);
 
-  const baseUrl = window.location.origin.includes('5173')
-    ? 'http://localhost:8000'
-    : window.location.origin;
+  const apiBase = import.meta.env.VITE_API_URL;
+  const baseUrl = apiBase
+    ? apiBase.replace(/\/+$/, '')
+    : (window.location.origin.includes('5173') ? 'http://localhost:8000' : window.location.origin);
 
   return (
     <div className="space-y-6 text-left">

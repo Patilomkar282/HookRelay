@@ -249,9 +249,10 @@ export const WebhookTestModal = ({
     setJsonError('');
   };
 
-  const baseUrl = window.location.origin.includes('5173')
-    ? 'http://localhost:8000'
-    : window.location.origin;
+  const apiBase = import.meta.env.VITE_API_URL;
+  const baseUrl = apiBase
+    ? apiBase.replace(/\/+$/, '')
+    : (window.location.origin.includes('5173') ? 'http://localhost:8000' : window.location.origin);
 
   // Build generated CLI terminal snippets (PowerShell & Bash)
   const cliSnippet = useMemo(() => {

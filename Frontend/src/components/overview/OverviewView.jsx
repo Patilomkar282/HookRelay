@@ -42,9 +42,10 @@ export const OverviewView = ({
   );
 
   const primaryEndpoint = endpoints[0] || null;
-  const baseUrl = window.location.origin.includes('5173')
-    ? 'http://localhost:8000'
-    : window.location.origin;
+  const apiBase = import.meta.env.VITE_API_URL;
+  const baseUrl = apiBase
+    ? apiBase.replace(/\/+$/, '')
+    : (window.location.origin.includes('5173') ? 'http://localhost:8000' : window.location.origin);
 
   const sampleSlug = primaryEndpoint?.slug || 'sample-slug-token123';
   const [terminalLang, setTerminalLang] = useState('powershell'); // 'powershell' | 'bash'
