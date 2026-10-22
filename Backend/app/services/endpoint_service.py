@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.endpoint import Endpoint
 from app.models.event import Event
 from app.schemas.endpoint import EndpointCreate, EndpointUpdate
+from app.services.security_service import validate_target_url
 
 
 def generate_endpoint_slug() -> str:
@@ -25,13 +26,14 @@ async def create_endpoint(
     endpoint_in: EndpointCreate,
 ) -> Endpoint:
     """Create a new webhook mailbox endpoint owned by user_id."""
+    clean_target_url = validate_target_url(str(endpoint_in.target_url))
     slug = generate_endpoint_slug()
     secret = generate_signing_secret()
 
     endpoint = Endpoint(
         user_id=user_id,
         slug=slug,
-        target_url=str(endpoint_in.target_url),
+        target_url=clean_target_url,
         signing_secret=secret,
         provider_type=endpoint_in.provider_type,
         is_active=True,
@@ -104,7 +106,7 @@ async def update_endpoint(
     endpoint = await get_user_endpoint_by_id(db, user_id, endpoint_id)
 
     if update_in.target_url is not None:
-        endpoint.target_url = str(update_in.target_url)
+        endpoint.target_url = validate_target_url(str(update_in.target_url))
     if update_in.provider_type is not None:
         endpoint.provider_type = update_in.provider_type
     if update_in.is_active is not None:

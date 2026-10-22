@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.event import IngestResponse
 from app.services.event_service import ingest_webhook_event
+from app.services.rate_limiter import ingest_rate_limiter
 
 router = APIRouter(prefix="/h", tags=["Ingest"])
 
@@ -24,6 +25,11 @@ async def ingest_webhook(
     Captures full headers and raw payload body, stores the event in PostgreSQL,
     and returns 202 Accepted immediately.
     """
+    # 1. Enforce rate limiting per slug and client IP
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{slug}:{client_ip}"
+    ingest_rate_limiter.enforce_rate_limit(rate_key)
+
     body_bytes = await request.body()
     # Convert header items to a standard case-preserved dictionary
     headers = {k: v for k, v in request.headers.items()}

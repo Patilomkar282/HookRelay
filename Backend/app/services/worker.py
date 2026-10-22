@@ -1,8 +1,10 @@
 import asyncio
 import logging
 from typing import Optional
+import time
 from app.database import AsyncSessionLocal
 from app.services.delivery_service import fetch_and_process_due_deliveries
+from app.services.retention_service import purge_expired_events
 
 logger = logging.getLogger("hookrelay.worker")
 
@@ -12,6 +14,7 @@ class DeliveryWorker:
         self.poll_interval = poll_interval
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
+        self._last_retention_run = 0.0
 
     async def run(self) -> None:
         logger.info("HookRelay delivery worker started (poll_interval=%.1fs)...", self.poll_interval)
@@ -21,6 +24,12 @@ class DeliveryWorker:
                     processed = await fetch_and_process_due_deliveries(session, batch_size=10)
                     if processed > 0:
                         logger.debug("Dispatched %d due deliveries", processed)
+
+                    # Periodically run retention cleanup (once every hour)
+                    now_ts = time.time()
+                    if now_ts - self._last_retention_run > 3600:
+                        self._last_retention_run = now_ts
+                        await purge_expired_events(session)
             except asyncio.CancelledError:
                 break
             except Exception as exc:

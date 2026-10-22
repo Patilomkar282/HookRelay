@@ -12,6 +12,7 @@ from app.models.delivery import Delivery
 from app.models.event import Event
 from app.models.endpoint import Endpoint
 from app.services.endpoint_service import get_user_endpoint_by_id
+from app.services.security_service import validate_target_url
 
 # Retry schedule configuration
 MAX_DELIVERY_ATTEMPTS = 5
@@ -188,9 +189,10 @@ async def send_webhook_http(
     headers: Dict[str, str],
     timeout: float = 10.0,
 ) -> httpx.Response:
-    """Send outbound HTTP request with timeout."""
+    """Send outbound HTTP request with timeout after SSRF validation."""
+    validated_url = validate_target_url(url)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-        return await client.post(url, json=payload, headers=headers)
+        return await client.post(validated_url, json=payload, headers=headers)
 
 
 async def forward_single_delivery(

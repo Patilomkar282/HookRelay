@@ -9,6 +9,7 @@ import UserProfileCard from './components/auth/UserProfileCard';
 import OverviewView from './components/overview/OverviewView';
 import EndpointsView from './components/endpoints/EndpointsView';
 import EventsView from './components/events/EventsView';
+import AnalyticsView from './components/analytics/AnalyticsView';
 import CreateEndpointModal from './components/endpoints/CreateEndpointModal';
 import WebhookTestModal from './components/tester/WebhookTestModal';
 import EventDetailModal from './components/events/EventDetailModal';
@@ -87,6 +88,7 @@ function Dashboard() {
                   {activeTab === 'overview' && 'Webhook Relaying Console'}
                   {activeTab === 'endpoints' && 'Webhook Mailboxes'}
                   {activeTab === 'events' && 'Event Capture & Replay Stream'}
+                  {activeTab === 'analytics' && 'Analytics & Reliability Telemetry'}
                   {activeTab === 'account' && 'Account & Security'}
                 </h1>
                 <p className="text-xs text-gray-500 mt-1">
@@ -96,13 +98,15 @@ function Dashboard() {
                     'Manage your public ingestion mailboxes, secrets, and forwarding destinations.'}
                   {activeTab === 'events' &&
                     'Inspect raw webhook headers, parsed JSON bodies, and replay requests.'}
+                  {activeTab === 'analytics' &&
+                    'Inspect delivery success rate, p95 latency curve, hourly throughput, and failure telemetry.'}
                   {activeTab === 'account' &&
                     'Manage authentication tokens, database connection, and API credentials.'}
                 </p>
               </div>
 
               <div>
-                <Badge status="delivered" label="Module 2 Complete: 202 Ingestion" />
+                <Badge status="delivered" label="Module 5 Complete: Hardened & Analyzed" />
               </div>
             </div>
 
@@ -128,6 +132,8 @@ function Dashboard() {
                 onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
               />
             )}
+
+            {activeTab === 'analytics' && <AnalyticsView />}
 
             {activeTab === 'account' && <UserProfileCard />}
           </div>

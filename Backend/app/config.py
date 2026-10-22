@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    # Security & Hardening Settings
+    ENFORCE_HTTPS: bool = False
+    ALLOW_PRIVATE_TARGETS: bool = False  # Set to True in local test environments if testing local mock servers
+    EVENT_RETENTION_DAYS: int = 30
+    INGEST_RATE_LIMIT_PER_MINUTE: int = 120
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

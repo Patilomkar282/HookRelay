@@ -141,5 +141,32 @@ export const replayFailedDeliveries = async (endpointId) => {
   return response.data;
 };
 
+// Analytics & Stats APIs (Module 5)
+export const fetchStatsSummary = async (endpointId = null) => {
+  const params = {};
+  if (endpointId && endpointId !== 'all') {
+    params.endpoint_id = endpointId;
+  }
+  const response = await apiClient.get('/stats/summary', { params });
+  return response.data;
+};
+
+export const fetchStatsTimeseries = async (endpointId = null, hours = 24) => {
+  const params = { hours };
+  if (endpointId && endpointId !== 'all') {
+    params.endpoint_id = endpointId;
+  }
+  const response = await apiClient.get('/stats/timeseries', { params });
+  return response.data;
+};
+
+export const triggerRetentionCleanup = async (retentionDays = 30) => {
+  const response = await apiClient.post('/stats/cleanup', null, {
+    params: { retention_days: retentionDays },
+  });
+  return response.data;
+};
+
 export default apiClient;
+
 

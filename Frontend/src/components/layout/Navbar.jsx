@@ -12,6 +12,7 @@ export const Navbar = ({ health, activeTab = 'overview', onSelectTab }) => {
     { id: 'overview', label: 'Overview' },
     { id: 'endpoints', label: 'Endpoints' },
     { id: 'events', label: 'Events' },
+    { id: 'analytics', label: 'Analytics' },
     { id: 'account', label: 'Account & Security' },
   ];
 

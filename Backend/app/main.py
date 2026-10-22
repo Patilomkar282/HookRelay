@@ -61,6 +61,7 @@ app.include_router(endpoints_router)
 app.include_router(endpoints_router, prefix=settings.API_V1_STR)
 
 from app.routers.websocket import router as websocket_router
+from app.routers.stats import router as stats_router
 
 # Mount Events router at /events and at /api/v1/events
 app.include_router(events_router)
@@ -70,8 +71,24 @@ app.include_router(events_router, prefix=settings.API_V1_STR)
 app.include_router(websocket_router)
 app.include_router(websocket_router, prefix=settings.API_V1_STR)
 
+# Mount Stats & Analytics router at /stats and at /api/v1/stats
+app.include_router(stats_router)
+app.include_router(stats_router, prefix=settings.API_V1_STR)
+
 # Include API v1 Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+@app.middleware("http")
+async def enforce_https_middleware(request, call_next):
+    """Enforce HTTPS in production via X-Forwarded-Proto header redirect."""
+    if getattr(settings, "ENFORCE_HTTPS", False) or (settings.ENVIRONMENT == "production" and not settings.DEBUG):
+        proto = request.headers.get("x-forwarded-proto", "").lower()
+        if proto == "http":
+            from fastapi.responses import RedirectResponse
+            https_url = str(request.url).replace("http://", "https://", 1)
+            return RedirectResponse(url=https_url, status_code=301)
+    return await call_next(request)
 
 
 @app.get("/", tags=["Root"])

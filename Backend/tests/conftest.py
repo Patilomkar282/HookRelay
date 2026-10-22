@@ -2,7 +2,10 @@ import pytest_asyncio
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.database import Base, get_db
+from app.config import settings
 from app.main import app
+
+settings.ALLOW_PRIVATE_TARGETS = True
 
 # In-memory SQLite async engine for automated tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
