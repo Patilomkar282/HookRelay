@@ -74,6 +74,16 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const userData = await getMeApi();
+      setUser(userData);
+      return userData;
+    } catch (err) {
+      console.warn('Failed to refresh user:', err.message);
+    }
+  };
+
   const testMe = async () => {
     return await getMeApi();
   };
@@ -82,6 +92,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         token,
         isAuthenticated: !!user,
         isLoading,
@@ -90,6 +101,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        refreshUser,
         testMe,
       }}
     >

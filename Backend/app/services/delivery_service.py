@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.models.delivery import Delivery
 from app.models.event import Event
 from app.models.endpoint import Endpoint
+from app.models.user import User
 from app.services.endpoint_service import get_user_endpoint_by_id
 from app.services.security_service import validate_target_url
 
@@ -204,11 +205,12 @@ async def forward_single_delivery(
     Execute HTTP forwarding with 10s timeout, update attempt count,
     record status code, latency, and schedule retries on failure.
     """
-    # Fetch delivery with event and endpoint
+    # Fetch delivery with event, endpoint, and user settings
     stmt = (
-        select(Delivery, Event, Endpoint)
+        select(Delivery, Event, Endpoint, User)
         .join(Event, Delivery.event_id == Event.id)
         .join(Endpoint, Event.endpoint_id == Endpoint.id)
+        .outerjoin(User, Endpoint.user_id == User.id)
         .where(Delivery.id == delivery_id)
     )
     result = await db.execute(stmt)
@@ -217,7 +219,7 @@ async def forward_single_delivery(
     if not row:
         return None
 
-    delivery, event, endpoint = row
+    delivery, event, endpoint, user = row
 
     if not endpoint.is_active:
         # Endpoint was disabled by user; mark as failed
@@ -226,6 +228,10 @@ async def forward_single_delivery(
         delivery.next_attempt_at = None
         await db.commit()
         return delivery
+
+    # Determine user-configured delivery timeout and retry limits
+    timeout_sec = float(user.delivery_timeout) if (user and user.delivery_timeout) else 10.0
+    max_retries = int(user.retry_attempts) if (user and user.retry_attempts) else MAX_DELIVERY_ATTEMPTS
 
     # Prepare forwarding headers
     hop_by_hop = {"host", "content-length", "transfer-encoding", "connection"}
@@ -238,7 +244,7 @@ async def forward_single_delivery(
     forward_headers["X-HookRelay-Delivery"] = delivery.id
     forward_headers["X-HookRelay-Event"] = event.id
 
-    # Execute HTTP POST request with 10s timeout
+    # Execute HTTP POST request with user-defined timeout
     start_time = time.perf_counter()
     delivery.attempt_count += 1
 
@@ -247,7 +253,7 @@ async def forward_single_delivery(
             url=endpoint.target_url,
             payload=event.body,
             headers=forward_headers,
-            timeout=10.0,
+            timeout=timeout_sec,
         )
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         delivery.latency_ms = latency_ms
@@ -261,6 +267,7 @@ async def forward_single_delivery(
             _handle_failure(
                 delivery=delivery,
                 error_msg=f"Destination returned HTTP {response.status_code}",
+                max_retries=max_retries,
                 fast_mode=fast_retry_mode,
             )
 
@@ -271,6 +278,7 @@ async def forward_single_delivery(
         _handle_failure(
             delivery=delivery,
             error_msg=f"Connection failed: {exc}",
+            max_retries=max_retries,
             fast_mode=fast_retry_mode,
         )
     except httpx.TimeoutException as exc:
@@ -279,7 +287,8 @@ async def forward_single_delivery(
         delivery.last_status_code = None
         _handle_failure(
             delivery=delivery,
-            error_msg=f"Request timed out after 10 seconds: {exc}",
+            error_msg=f"Request timed out after {int(timeout_sec)}s: {exc}",
+            max_retries=max_retries,
             fast_mode=fast_retry_mode,
         )
     except Exception as exc:
@@ -289,6 +298,7 @@ async def forward_single_delivery(
         _handle_failure(
             delivery=delivery,
             error_msg=f"Delivery error: {exc}",
+            max_retries=max_retries,
             fast_mode=fast_retry_mode,
         )
 
@@ -319,10 +329,15 @@ async def forward_single_delivery(
     return delivery
 
 
-def _handle_failure(delivery: Delivery, error_msg: str, fast_mode: bool = False) -> None:
+def _handle_failure(
+    delivery: Delivery,
+    error_msg: str,
+    max_retries: int = MAX_DELIVERY_ATTEMPTS,
+    fast_mode: bool = False,
+) -> None:
     """Schedule next retry with backoff, or transition to failed if attempts exhausted."""
     delivery.last_error = error_msg
-    if delivery.attempt_count >= MAX_DELIVERY_ATTEMPTS:
+    if delivery.attempt_count >= max_retries:
         delivery.status = "failed"
         delivery.next_attempt_at = None
     else:

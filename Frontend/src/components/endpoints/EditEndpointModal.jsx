@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Sliders } from 'lucide-react';
 import Button from '../common/Button';
 import Input from '../common/Input';
 
 export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoading }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
   const [providerType, setProviderType] = useState('custom');
+  const [customSignatureHeader, setCustomSignatureHeader] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (endpoint) {
+      setName(endpoint.name || '');
+      setDescription(endpoint.description || '');
       setTargetUrl(endpoint.target_url || '');
       setProviderType(endpoint.provider_type || 'custom');
+      setCustomSignatureHeader(endpoint.custom_signature_header || '');
       setIsActive(endpoint.is_active ?? true);
       setError('');
     }
@@ -43,8 +49,11 @@ export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoadi
 
     try {
       await onSubmit(endpoint.id, {
+        name: name.trim() || null,
+        description: description.trim() || null,
         target_url: trimmed,
-        provider_type: providerType,
+        provider_type: providerType.trim().toLowerCase(),
+        custom_signature_header: customSignatureHeader.trim() || null,
         is_active: isActive,
       });
       onClose();
@@ -56,15 +65,15 @@ export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoadi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="bg-white rounded-xl border border-gray-200 shadow-xl max-w-md w-full overflow-hidden text-left"
+        className="bg-white rounded-xl border border-gray-200 shadow-xl max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden text-left"
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Edit Webhook Mailbox</h3>
             <p className="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-xs">
-              slug: {endpoint.slug}
+              slug: /h/{endpoint.slug}
             </p>
           </div>
           <button
@@ -76,15 +85,28 @@ export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoadi
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
               {error}
             </div>
           )}
 
+          {/* Mailbox Name */}
+          <Input
+            label="Mailbox Name / Friendly Label"
+            id="edit-mailbox-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Shopify Store Production, Slack Alerts"
+            helperText="Friendly name displayed on your dashboard."
+          />
+
+          {/* Destination Target URL */}
           <Input
             label="Destination Target URL"
+            id="edit-target-url"
             type="text"
             required
             value={targetUrl}
@@ -92,22 +114,56 @@ export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoadi
             helperText="Where inbound webhooks will be dispatched."
           />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Provider Type
-            </label>
-            <select
-              value={providerType}
-              onChange={(e) => setProviderType(e.target.value)}
-              className="w-full h-9 px-3 text-sm bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
-            >
-              <option value="custom">Custom Webhook</option>
-              <option value="stripe">Stripe</option>
-              <option value="github">GitHub</option>
-              <option value="razorpay">Razorpay</option>
-            </select>
+          {/* Provider Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Provider Type
+              </label>
+              <select
+                value={['custom', 'shopify', 'stripe', 'github', 'razorpay', 'slack'].includes(providerType) ? providerType : 'custom'}
+                onChange={(e) => setProviderType(e.target.value)}
+                className="w-full h-9 px-3 text-xs bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="custom">Custom Webhook</option>
+                <option value="shopify">Shopify</option>
+                <option value="stripe">Stripe</option>
+                <option value="github">GitHub</option>
+                <option value="razorpay">Razorpay</option>
+                <option value="slack">Slack / Twilio</option>
+              </select>
+            </div>
+
+            {/* Custom Signature Header */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Custom Signature Header
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. X-Shopify-Hmac-Sha256"
+                value={customSignatureHeader}
+                onChange={(e) => setCustomSignatureHeader(e.target.value)}
+                className="w-full h-9 px-3 text-xs font-mono bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
           </div>
 
+          {/* Team Notes / Description */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Description / Team Notes (Optional)
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Ingests payment order webhooks and forwards to billing service."
+              className="w-full text-xs bg-gray-50 border border-gray-300 rounded-md p-2 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+          </div>
+
+          {/* Active / Paused Toggle */}
           <div className="pt-2 flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div>
               <span className="text-xs font-semibold text-gray-900 block">
@@ -128,7 +184,7 @@ export const EditEndpointModal = ({ isOpen, onClose, endpoint, onSubmit, isLoadi
             </label>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100 shrink-0">
             <Button variant="secondary" size="md" onClick={onClose} type="button">
               Cancel
             </Button>

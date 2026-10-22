@@ -131,9 +131,9 @@ export const AnalyticsView = () => {
             <h1 className="text-xl font-bold tracking-tight text-gray-900">
               Analytics & Reliability
             </h1>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-              <Zap className="w-3 h-3 text-indigo-500" />
-              Module 5 Live
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Telemetry
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -154,7 +154,7 @@ export const AnalyticsView = () => {
               <option value="all">All Webhook Mailboxes</option>
               {endpoints.map((ep) => (
                 <option key={ep.id} value={ep.id}>
-                  /h/{ep.slug} ({ep.provider_type})
+                  {ep.name ? `${ep.name} (/h/${ep.slug})` : `/h/${ep.slug}`} ({ep.provider_type})
                 </option>
               ))}
             </select>

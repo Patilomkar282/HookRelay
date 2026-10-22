@@ -28,14 +28,17 @@ async def create_endpoint(
     """Create a new webhook mailbox endpoint owned by user_id."""
     clean_target_url = validate_target_url(str(endpoint_in.target_url))
     slug = generate_endpoint_slug()
-    secret = generate_signing_secret()
+    secret = endpoint_in.signing_secret.strip() if endpoint_in.signing_secret and endpoint_in.signing_secret.strip() else generate_signing_secret()
 
     endpoint = Endpoint(
         user_id=user_id,
         slug=slug,
+        name=endpoint_in.name.strip() if endpoint_in.name else None,
+        description=endpoint_in.description.strip() if endpoint_in.description else None,
         target_url=clean_target_url,
         signing_secret=secret,
-        provider_type=endpoint_in.provider_type,
+        provider_type=endpoint_in.provider_type.strip() if endpoint_in.provider_type else "custom",
+        custom_signature_header=endpoint_in.custom_signature_header.strip() if endpoint_in.custom_signature_header else None,
         is_active=True,
     )
     db.add(endpoint)
@@ -105,10 +108,16 @@ async def update_endpoint(
     """Update endpoint properties with ownership check."""
     endpoint = await get_user_endpoint_by_id(db, user_id, endpoint_id)
 
+    if update_in.name is not None:
+        endpoint.name = update_in.name.strip() if update_in.name else None
+    if update_in.description is not None:
+        endpoint.description = update_in.description.strip() if update_in.description else None
+    if update_in.custom_signature_header is not None:
+        endpoint.custom_signature_header = update_in.custom_signature_header.strip() if update_in.custom_signature_header else None
     if update_in.target_url is not None:
         endpoint.target_url = validate_target_url(str(update_in.target_url))
     if update_in.provider_type is not None:
-        endpoint.provider_type = update_in.provider_type
+        endpoint.provider_type = update_in.provider_type.strip() if update_in.provider_type else "custom"
     if update_in.is_active is not None:
         endpoint.is_active = update_in.is_active
 

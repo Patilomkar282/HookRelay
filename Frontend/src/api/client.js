@@ -53,7 +53,7 @@ export const getMeApi = async () => {
   return response.data;
 };
 
-// Endpoints APIs (Module 2)
+// Endpoints & Mailbox Management APIs
 export const fetchEndpoints = async () => {
   const response = await apiClient.get('/endpoints');
   return response.data;
@@ -64,19 +64,34 @@ export const fetchEndpoint = async (id) => {
   return response.data;
 };
 
-export const createEndpoint = async ({ target_url, provider_type = 'custom', name = null }) => {
-  const response = await apiClient.post('/endpoints', {
-    target_url,
-    provider_type,
-    name,
-  });
+export const createEndpoint = async ({
+  target_url,
+  provider_type = 'custom',
+  name = null,
+  description = null,
+  custom_signature_header = null,
+  signing_secret = null,
+}) => {
+  const payload = { target_url, provider_type };
+  if (name) payload.name = name;
+  if (description) payload.description = description;
+  if (custom_signature_header) payload.custom_signature_header = custom_signature_header;
+  if (signing_secret) payload.signing_secret = signing_secret;
+
+  const response = await apiClient.post('/endpoints', payload);
   return response.data;
 };
 
-export const updateEndpoint = async (id, { target_url, provider_type, is_active }) => {
+export const updateEndpoint = async (
+  id,
+  { name, description, target_url, provider_type, custom_signature_header, is_active }
+) => {
   const payload = {};
+  if (name !== undefined) payload.name = name;
+  if (description !== undefined) payload.description = description;
   if (target_url !== undefined) payload.target_url = target_url;
   if (provider_type !== undefined) payload.provider_type = provider_type;
+  if (custom_signature_header !== undefined) payload.custom_signature_header = custom_signature_header;
   if (is_active !== undefined) payload.is_active = is_active;
   const response = await apiClient.patch(`/endpoints/${id}`, payload);
   return response.data;
@@ -92,7 +107,7 @@ export const rotateSigningSecret = async (id) => {
   return response.data;
 };
 
-// Events APIs (Module 2 & 4)
+// Webhook Ingest & Event Observability APIs
 export const fetchEndpointEvents = async (
   id,
   { limit = 20, offset = 0, status = null } = {}
@@ -125,7 +140,7 @@ export const sendIngestWebhook = async (slug, payload, headers = {}) => {
   return response.data;
 };
 
-// Delivery & Replay APIs (Module 3)
+// Outbound Delivery & Replay Engine APIs
 export const fetchEventDeliveries = async (eventId) => {
   const response = await apiClient.get(`/events/${eventId}/deliveries`);
   return response.data;
@@ -141,7 +156,7 @@ export const replayFailedDeliveries = async (endpointId) => {
   return response.data;
 };
 
-// Analytics & Stats APIs (Module 5)
+// Telemetry & Aggregated Stats APIs
 export const fetchStatsSummary = async (endpointId = null) => {
   const params = {};
   if (endpointId && endpointId !== 'all') {
@@ -167,6 +182,43 @@ export const triggerRetentionCleanup = async (retentionDays = 30) => {
   return response.data;
 };
 
+// User Settings, Profile, API Keys & Account Management APIs
+export const updateProfileApi = async (data) => {
+  const response = await apiClient.patch('/auth/profile', data);
+  return response.data;
+};
+
+export const changePasswordApi = async ({ current_password, new_password }) => {
+  const response = await apiClient.post('/auth/change-password', {
+    current_password,
+    new_password,
+  });
+  return response.data;
+};
+
+export const fetchApiKeys = async () => {
+  const response = await apiClient.get('/auth/api-keys');
+  return response.data;
+};
+
+export const createApiKey = async (name) => {
+  const response = await apiClient.post('/auth/api-keys', { name });
+  return response.data;
+};
+
+export const deleteApiKey = async (id) => {
+  const response = await apiClient.delete(`/auth/api-keys/${id}`);
+  return response.data;
+};
+
+export const purgeEventsApi = async () => {
+  const response = await apiClient.post('/auth/danger/purge-events');
+  return response.data;
+};
+
+export const deleteAccountApi = async (password) => {
+  const response = await apiClient.post('/auth/danger/delete-account', { password });
+  return response.data;
+};
+
 export default apiClient;
-
-

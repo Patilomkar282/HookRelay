@@ -83,6 +83,7 @@ async def ingest_webhook_event(
         signing_secret=endpoint.signing_secret,
         headers=headers,
         body_bytes=body_bytes,
+        custom_signature_header=getattr(endpoint, "custom_signature_header", None),
     )
 
     # 4. Save Event to PostgreSQL

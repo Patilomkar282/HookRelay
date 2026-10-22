@@ -191,7 +191,7 @@ export const EventsView = ({
             ) : (
               endpoints.map((ep) => (
                 <option key={ep.id} value={ep.id}>
-                  /h/{ep.slug} ({ep.provider_type}) — {ep.events_count || 0} events
+                  {ep.name ? `${ep.name} (/h/${ep.slug})` : `/h/${ep.slug}`} ({ep.provider_type}) — {ep.events_count || 0} events
                 </option>
               ))
             )}

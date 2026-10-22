@@ -135,10 +135,13 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
 
   // Filtered endpoints
   const filteredEndpoints = endpoints.filter((ep) => {
+    const term = search.toLowerCase();
     const matchesSearch =
-      ep.slug.toLowerCase().includes(search.toLowerCase()) ||
-      ep.target_url.toLowerCase().includes(search.toLowerCase()) ||
-      ep.provider_type.toLowerCase().includes(search.toLowerCase());
+      (ep.name && ep.name.toLowerCase().includes(term)) ||
+      (ep.description && ep.description.toLowerCase().includes(term)) ||
+      ep.slug.toLowerCase().includes(term) ||
+      ep.target_url.toLowerCase().includes(term) ||
+      ep.provider_type.toLowerCase().includes(term);
     const matchesProvider =
       providerFilter === 'all' || ep.provider_type === providerFilter;
     return matchesSearch && matchesProvider;
@@ -227,10 +230,12 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
               className="h-9 px-2.5 text-xs bg-gray-50 border border-gray-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               <option value="all">All Providers</option>
-              <option value="custom">Custom</option>
+              <option value="custom">Custom Webhooks</option>
+              <option value="shopify">Shopify</option>
               <option value="stripe">Stripe</option>
               <option value="github">GitHub</option>
               <option value="razorpay">Razorpay</option>
+              <option value="slack">Slack / Twilio</option>
             </select>
           </div>
         </div>
@@ -296,27 +301,48 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
                 className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs hover:border-gray-300 transition-all space-y-4"
               >
                 {/* Header row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs font-semibold text-gray-900 uppercase tracking-wider font-mono">
-                      {ep.provider_type}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleActive(ep)}
-                      title={ep.is_active ? 'Click to pause mailbox' : 'Click to activate mailbox'}
-                      className="cursor-pointer transition-transform hover:scale-105"
-                    >
-                      <Badge
-                        status={ep.is_active ? 'delivered' : 'pending'}
-                        label={ep.is_active ? 'Active' : 'Paused'}
-                      />
-                    </button>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-[11px] text-gray-400 font-mono">
-                      Created {new Date(ep.created_at).toLocaleDateString()}
-                    </span>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-gray-100">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                        {ep.name || `/h/${ep.slug}`}
+                      </h3>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider font-mono bg-gray-100 text-gray-700 border border-gray-200">
+                        {ep.provider_type}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(ep)}
+                        title={ep.is_active ? 'Click to pause mailbox' : 'Click to activate mailbox'}
+                        className="cursor-pointer transition-transform hover:scale-105"
+                      >
+                        <Badge
+                          status={ep.is_active ? 'delivered' : 'pending'}
+                          label={ep.is_active ? 'Active' : 'Paused'}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 font-mono">
+                      <span>slug: <code className="text-gray-700 font-semibold">{ep.slug}</code></span>
+                      <span>•</span>
+                      <span>Created {new Date(ep.created_at).toLocaleDateString()}</span>
+                      {ep.custom_signature_header && (
+                        <>
+                          <span>•</span>
+                          <span className="text-indigo-600 font-sans font-medium">
+                            Header: <code className="font-mono bg-indigo-50 px-1 py-0.2 rounded border border-indigo-100">{ep.custom_signature_header}</code>
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {ep.description && (
+                      <p className="text-xs text-gray-600 pt-0.5 leading-relaxed font-sans">
+                        {ep.description}
+                      </p>
+                    )}
                   </div>
 
                   {/* Actions Bar */}

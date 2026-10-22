@@ -233,3 +233,84 @@ async def test_module2_edge_cases_and_limits():
         get_deleted = await client.get(f"/endpoints/{ep_id}", headers=headers)
         assert get_deleted.status_code == 404
 
+
+@pytest.mark.asyncio
+async def test_custom_mailbox_configuration_and_signature():
+    import hmac
+    import hashlib
+    import base64
+    import json
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Register user
+        reg_res = await client.post(
+            "/auth/register",
+            json={"email": "custom_mailbox_user@hookrelay.dev", "password": "password123"},
+        )
+        token = reg_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Create custom mailbox with user's own name, custom provider, custom header and custom secret
+        custom_secret = "custom_secret_key_12345"
+        create_res = await client.post(
+            "/endpoints",
+            headers=headers,
+            json={
+                "name": "Shopify Orders Production",
+                "description": "Captures customer order created webhooks from Shopify store",
+                "target_url": "https://api.my-ecommerce.com/orders/webhook",
+                "provider_type": "shopify",
+                "custom_signature_header": "X-Shopify-Hmac-Sha256",
+                "signing_secret": custom_secret,
+            },
+        )
+        assert create_res.status_code == 201
+        ep = create_res.json()
+        assert ep["name"] == "Shopify Orders Production"
+        assert ep["description"] == "Captures customer order created webhooks from Shopify store"
+        assert ep["provider_type"] == "shopify"
+        assert ep["custom_signature_header"] == "X-Shopify-Hmac-Sha256"
+        assert ep["signing_secret"] == custom_secret
+        slug = ep["slug"]
+        ep_id = ep["id"]
+
+        # Ingest a webhook signed with that custom secret
+        payload = {"order_id": 9999, "total": "129.99"}
+        raw_body = json.dumps(payload).encode("utf-8")
+        computed_b64 = base64.b64encode(
+            hmac.new(custom_secret.encode("utf-8"), raw_body, hashlib.sha256).digest()
+        ).decode("utf-8")
+
+        ingest_res = await client.post(
+            f"/h/{slug}",
+            content=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Shopify-Hmac-Sha256": computed_b64,
+            },
+        )
+        assert ingest_res.status_code == 202
+
+        # Check events
+        events_res = await client.get(f"/endpoints/{ep_id}/events", headers=headers)
+        assert events_res.status_code == 200
+        events = events_res.json()["items"]
+        assert len(events) == 1
+        assert events[0]["signature_valid"] is True
+
+        # Update mailbox name and description
+        update_res = await client.patch(
+            f"/endpoints/{ep_id}",
+            headers=headers,
+            json={
+                "name": "Shopify Primary Webhook Gateway",
+                "description": "Updated team notes: high priority",
+            },
+        )
+        assert update_res.status_code == 200
+        updated = update_res.json()
+        assert updated["name"] == "Shopify Primary Webhook Gateway"
+        assert updated["description"] == "Updated team notes: high priority"
+
+
