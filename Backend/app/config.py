@@ -1,4 +1,6 @@
+import re
 from typing import List
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +20,30 @@ class Settings(BaseSettings):
     ]
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hookrelay"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def clean_database_url(cls, v: str) -> str:
+        if not v:
+            return v
+        url = str(v).strip()
+        # Convert postgres:// or postgresql:// to postgresql+asyncpg://
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        # Sanitize query parameters for asyncpg compatibility
+        if "sslmode=" in url or "channel_binding=" in url:
+            # Strip libpq-specific params that cause TypeError in asyncpg
+            url = re.sub(r"[?&]channel_binding=[^&]*", "", url)
+            url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+            url = url.rstrip("&").rstrip("?")
+            if "?" not in url:
+                url = f"{url}?ssl=require"
+            else:
+                url = f"{url}&ssl=require"
+        return url
 
     SECRET_KEY: str = "hookrelay_super_secret_jwt_key_2026_dev_secure_token_min32bytes"
     ALGORITHM: str = "HS256"
