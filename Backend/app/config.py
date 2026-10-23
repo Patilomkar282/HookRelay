@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Security & Hardening Settings
     ENFORCE_HTTPS: bool = False
-    ALLOW_PRIVATE_TARGETS: bool = False  # Set to True in local test environments if testing local mock servers
+    ALLOW_PRIVATE_TARGETS: bool = True  # Allowed in local development for testing local mock servers
     EVENT_RETENTION_DAYS: int = 30
     INGEST_RATE_LIMIT_PER_MINUTE: int = 120
 

@@ -313,8 +313,8 @@ export const AnalyticsView = () => {
       </div>
 
       {/* Chart Row 1: Event Ingestion Volume & Outcomes Over Time */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Webhook Delivery Outcomes Over Time</h2>
             <p className="text-xs text-gray-500">
@@ -333,7 +333,7 @@ export const AnalyticsView = () => {
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-64 w-full min-w-0 overflow-hidden">
           {loadingTimeseries ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-400">
               Loading timeseries chart...
@@ -395,8 +395,8 @@ export const AnalyticsView = () => {
       {/* Chart Row 2: Two Columns (Latency Trends & Top Failure Reasons) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Column A: Latency Distribution Trends */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-gray-900">p95 & Average Latency Trend</h2>
               <p className="text-xs text-gray-500">
@@ -415,7 +415,7 @@ export const AnalyticsView = () => {
             </div>
           </div>
 
-          <div className="h-60 w-full">
+          <div className="h-60 w-full min-w-0 overflow-hidden">
             {loadingTimeseries ? (
               <div className="h-full flex items-center justify-center text-xs text-gray-400">
                 Loading latency curve...

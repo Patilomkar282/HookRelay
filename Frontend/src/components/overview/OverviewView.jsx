@@ -284,7 +284,7 @@ export const OverviewView = ({
               Test Ingestion with cURL / PowerShell / CLI
             </h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs font-medium">
               <button
                 type="button"
@@ -325,7 +325,7 @@ export const OverviewView = ({
           Send a sample webhook payload directly to your mailbox slug. It will be captured, verified, and delivered to your destination URL within milliseconds:
         </p>
 
-        <pre className="p-4 bg-gray-950 text-emerald-400 rounded-xl text-xs font-mono leading-relaxed overflow-x-auto select-all border border-gray-800">
+        <pre className="p-3 sm:p-4 bg-gray-950 text-emerald-400 rounded-xl text-xs font-mono leading-relaxed overflow-x-auto select-all border border-gray-800 max-w-full">
           <code>{terminalSnippet}</code>
         </pre>
       </div>

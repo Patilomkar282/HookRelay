@@ -223,12 +223,12 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
           </div>
 
           {/* Provider Filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
             <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0 hidden sm:block" />
             <select
               value={providerFilter}
               onChange={(e) => setProviderFilter(e.target.value)}
-              className="h-9 px-2.5 text-xs bg-gray-50 border border-gray-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="h-9 px-2.5 text-xs bg-gray-50 border border-gray-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 w-full sm:w-auto"
             >
               <option value="all">All Providers</option>
               <option value="custom">Custom Webhooks</option>
@@ -242,7 +242,7 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
         </div>
 
         {/* Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-between sm:justify-start w-full sm:w-auto">
           <Button
             variant="secondary"
             size="md"
@@ -258,6 +258,7 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
             size="md"
             icon={Plus}
             onClick={() => setIsCreateOpen(true)}
+            className="flex-1 sm:flex-initial justify-center"
           >
             Create Mailbox
           </Button>

@@ -199,7 +199,7 @@ export const EventsView = ({
         </div>
 
         {/* Right: Auto-refresh switch, Refetch, Test */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Live Indicator Switch */}
           <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
             <span
@@ -376,8 +376,8 @@ export const EventsView = ({
           ) : (
             <>
               {/* Events Table */}
-              <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto w-full max-w-full">
+                <table className="w-full min-w-[620px] text-left text-xs">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Event ID</th>

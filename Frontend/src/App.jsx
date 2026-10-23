@@ -50,8 +50,25 @@ function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-xs text-gray-500 font-medium">
-        Loading session...
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center text-xs text-gray-500 font-medium">
+        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <span>Initializing HookRelay session...</span>
+      </div>
+    );
+  }
+
+  // When not authenticated, show ONLY the dedicated full-screen auth screen (no navbar, no footer)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-white text-gray-900 font-sans overflow-x-hidden w-full">
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+        <AuthCard />
       </div>
     );
   }
@@ -62,7 +79,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans overflow-x-hidden w-full">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -78,73 +95,67 @@ function Dashboard() {
         onSelectTab={(tab) => setActiveTab(tab)}
       />
 
-      <main className="flex-1 w-full px-6 lg:px-10 xl:px-12 py-8">
-        {isAuthenticated ? (
-          <div className="space-y-6">
-            {/* Header info bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                  {activeTab === 'overview' && 'Webhook Relaying Console'}
-                  {activeTab === 'endpoints' && 'Webhook Mailboxes'}
-                  {activeTab === 'events' && 'Event Capture & Replay Stream'}
-                  {activeTab === 'analytics' && 'Analytics & Reliability Telemetry'}
-                  {activeTab === 'account' && 'Account & Security'}
-                </h1>
-                <p className="text-xs text-gray-500 mt-1">
-                  {activeTab === 'overview' &&
-                    'Live status, high-throughput mailbox infrastructure, and delivery observability.'}
-                  {activeTab === 'endpoints' &&
-                    'Manage your public ingestion mailboxes, cryptographic secrets, and forwarding destinations.'}
-                  {activeTab === 'events' &&
-                    'Inspect raw webhook headers, parsed JSON bodies, and real-time delivery status.'}
-                  {activeTab === 'analytics' &&
-                    'Inspect delivery success rate, p95 latency curve, hourly throughput, and failure telemetry.'}
-                  {activeTab === 'account' &&
-                    'Manage your profile, personal API keys, delivery policies, and security credentials.'}
-                </p>
-              </div>
-
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Production Ready • 99.9% Uptime SLA
-                </span>
-              </div>
+      <main className="flex-1 w-full max-w-full px-3.5 sm:px-6 lg:px-10 xl:px-12 py-4 sm:py-8">
+        <div className="space-y-6">
+          {/* Header info bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+                {activeTab === 'overview' && 'Webhook Relaying Console'}
+                {activeTab === 'endpoints' && 'Webhook Mailboxes'}
+                {activeTab === 'events' && 'Event Capture & Replay Stream'}
+                {activeTab === 'analytics' && 'Analytics & Reliability Telemetry'}
+                {activeTab === 'account' && 'Account & Security'}
+              </h1>
+              <p className="text-xs text-gray-500 mt-1">
+                {activeTab === 'overview' &&
+                  'Live status, high-throughput mailbox infrastructure, and delivery observability.'}
+                {activeTab === 'endpoints' &&
+                  'Manage your public ingestion mailboxes, cryptographic secrets, and forwarding destinations.'}
+                {activeTab === 'events' &&
+                  'Inspect raw webhook headers, parsed JSON bodies, and real-time delivery status.'}
+                {activeTab === 'analytics' &&
+                  'Inspect delivery success rate, p95 latency curve, hourly throughput, and failure telemetry.'}
+                {activeTab === 'account' &&
+                  'Manage your profile, personal API keys, delivery policies, and security credentials.'}
+              </p>
             </div>
 
-            {/* View Panels */}
-            {activeTab === 'overview' && (
-              <OverviewView
-                onNavigateTab={(tab) => setActiveTab(tab)}
-                onOpenCreateEndpoint={() => setIsGlobalCreateOpen(true)}
-                onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
-              />
-            )}
-
-            {activeTab === 'endpoints' && (
-              <EndpointsView
-                onSelectEndpointForEvents={handleSelectEndpointForEvents}
-                onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
-              />
-            )}
-
-            {activeTab === 'events' && (
-              <EventsView
-                initialEndpointId={selectedEndpointIdForEvents}
-                onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
-              />
-            )}
-
-            {activeTab === 'analytics' && <AnalyticsView />}
-
-            {activeTab === 'account' && <UserProfileCard />}
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Production Ready • 99.9% Uptime SLA
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="py-6">
-            <AuthCard />
-          </div>
-        )}
+
+          {/* View Panels */}
+          {activeTab === 'overview' && (
+            <OverviewView
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenCreateEndpoint={() => setIsGlobalCreateOpen(true)}
+              onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
+            />
+          )}
+
+          {activeTab === 'endpoints' && (
+            <EndpointsView
+              onSelectEndpointForEvents={handleSelectEndpointForEvents}
+              onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
+            />
+          )}
+
+          {activeTab === 'events' && (
+            <EventsView
+              initialEndpointId={selectedEndpointIdForEvents}
+              onOpenTestModal={(ep) => setTestModalEndpoint(ep)}
+            />
+          )}
+
+          {activeTab === 'analytics' && <AnalyticsView />}
+
+          {activeTab === 'account' && <UserProfileCard />}
+        </div>
       </main>
 
       {/* Global Modals */}

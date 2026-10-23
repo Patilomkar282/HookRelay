@@ -53,10 +53,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password) => {
+  const register = async (email, password, full_name = null) => {
     setAuthError(null);
     try {
-      const data = await registerApi(email, password);
+      const data = await registerApi(email, password, full_name);
       localStorage.setItem('hookrelay_token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);

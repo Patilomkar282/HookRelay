@@ -38,8 +38,10 @@ export const fetchHealth = async () => {
   return response.data;
 };
 
-export const registerApi = async (email, password) => {
-  const response = await apiClient.post('/auth/register', { email, password });
+export const registerApi = async (email, password, full_name = null) => {
+  const payload = { email, password };
+  if (full_name) payload.full_name = full_name;
+  const response = await apiClient.post('/auth/register', payload);
   return response.data;
 };
 

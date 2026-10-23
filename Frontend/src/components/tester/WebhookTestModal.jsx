@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { sendIngestWebhook } from '../../api/client';
+import { sendIngestWebhook, fetchEventDeliveries } from '../../api/client';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 import {
@@ -17,6 +17,7 @@ import {
   Check,
   ShieldCheck,
   Lock,
+  RotateCw,
 } from 'lucide-react';
 
 // Cryptographic HMAC-SHA256 helpers via Web Crypto API (100% native in browser)
@@ -76,8 +77,20 @@ export const WebhookTestModal = ({
   const [autoSign, setAutoSign] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [responseResult, setResponseResult] = useState(null);
+  const [deliveryResult, setDeliveryResult] = useState(null);
+  const [isCheckingDelivery, setIsCheckingDelivery] = useState(false);
   const [jsonError, setJsonError] = useState('');
   const [copiedCli, setCopiedCli] = useState(false);
+  const pollingTimeoutRef = useRef(null);
+
+  // Cleanup pending polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Build dynamic presets with endpoint metadata
   const presets = useMemo(() => {
@@ -228,12 +241,15 @@ export const WebhookTestModal = ({
   // Synchronize preset on modal open or endpoint change
   useEffect(() => {
     if (isOpen && endpoint) {
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
       const initialKey = getInitialPresetKey(endpoint);
       setSelectedPreset(initialKey);
       const p = presets[initialKey] || presets.custom;
       setHeadersText(JSON.stringify(p.headers, null, 2));
       setBodyText(JSON.stringify(p.body, null, 2));
       setResponseResult(null);
+      setDeliveryResult(null);
+      setIsCheckingDelivery(false);
       setJsonError('');
     }
   }, [isOpen, endpoint, presets]);
@@ -241,11 +257,14 @@ export const WebhookTestModal = ({
   if (!isOpen || !endpoint) return null;
 
   const handleSelectPreset = (key) => {
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
     setSelectedPreset(key);
     const p = presets[key] || presets.custom;
     setHeadersText(JSON.stringify(p.headers, null, 2));
     setBodyText(JSON.stringify(p.body, null, 2));
     setResponseResult(null);
+    setDeliveryResult(null);
+    setIsCheckingDelivery(false);
     setJsonError('');
   };
 
@@ -275,9 +294,39 @@ export const WebhookTestModal = ({
     setTimeout(() => setCopiedCli(false), 2000);
   };
 
+  const pollDeliveryStatus = async (eventId, attempt = 1) => {
+    try {
+      setIsCheckingDelivery(true);
+      const deliveries = await fetchEventDeliveries(eventId);
+      if (deliveries && deliveries.length > 0) {
+        setDeliveryResult(deliveries[0]);
+        // If still pending and attempt < 4, schedule a re-check
+        if (deliveries[0].status === 'pending' && attempt < 4) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            pollDeliveryStatus(eventId, attempt + 1);
+          }, 800);
+          return;
+        }
+      } else if (attempt < 4) {
+        // Record being committed in background task, poll again
+        pollingTimeoutRef.current = setTimeout(() => {
+          pollDeliveryStatus(eventId, attempt + 1);
+        }, 800);
+        return;
+      }
+    } catch (e) {
+      console.warn('Could not fetch delivery status', e);
+    } finally {
+      setIsCheckingDelivery(false);
+    }
+  };
+
   const handleSend = async () => {
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
     setJsonError('');
     setResponseResult(null);
+    setDeliveryResult(null);
+    setIsCheckingDelivery(false);
 
     let parsedHeaders = {};
     let parsedBody = {};
@@ -358,6 +407,14 @@ export const WebhookTestModal = ({
       // Invalidate queries so events list updates immediately
       queryClient.invalidateQueries({ queryKey: ['endpoints'] });
       queryClient.invalidateQueries({ queryKey: ['endpointEvents'] });
+
+      // Poll destination delivery outcome from background worker
+      if (res?.event_id) {
+        setIsCheckingDelivery(true);
+        pollingTimeoutRef.current = setTimeout(() => {
+          pollDeliveryStatus(res.event_id, 1);
+        }, 650);
+      }
     } catch (err) {
       setResponseResult({
         success: false,
@@ -590,54 +647,185 @@ export const WebhookTestModal = ({
 
           {/* Response Box */}
           {responseResult && (
-            <div
-              className={`p-4 rounded-lg border text-xs font-mono transition-all animate-in fade-in ${
-                responseResult.success
-                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-                  : 'bg-red-50/70 border-red-200 text-red-950'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10 font-sans">
-                <div className="flex items-center gap-2">
+            <div className="space-y-3 pt-1">
+              {/* STAGE 1: Gateway Ingestion Result */}
+              <div
+                className={`p-3.5 rounded-xl border text-xs font-mono transition-all animate-in fade-in ${
+                  responseResult.success
+                    ? 'bg-slate-50 border-slate-200 text-slate-800'
+                    : 'bg-red-50 border-red-200 text-red-950'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 font-sans">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
+                      1
+                    </span>
+                    <div>
+                      <span className="font-semibold text-xs text-gray-900 block">
+                        {responseResult.success
+                          ? 'Stage 1: Gateway Ingested & Stored'
+                          : 'Gateway Ingest Failed'}
+                      </span>
+                      <span className="text-[11px] text-gray-500 font-normal">
+                        Producer webhook captured &amp; durable in PostgreSQL (&lt;15ms)
+                      </span>
+                    </div>
+                  </div>
                   {responseResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <Badge status="active" label="202 Accepted (Queued)" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <Badge status="failed" label="Ingest Error" />
                   )}
-                  <span className="font-semibold text-xs">
-                    {responseResult.success
-                      ? 'HTTP 202 Accepted — Captured & Stored in PostgreSQL'
-                      : 'Request Failed'}
-                  </span>
                 </div>
-                {responseResult.success && (
-                  <Badge status="delivered" label="202 Accepted" />
+
+                {responseResult.success ? (
+                  <pre className="overflow-x-auto text-[11px] leading-normal text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200">
+                    {JSON.stringify(responseResult.data, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-red-700 font-sans">{responseResult.error}</p>
                 )}
               </div>
 
-              {responseResult.success ? (
-                <div className="space-y-2">
-                  <pre className="overflow-x-auto text-[11px] leading-normal text-emerald-900">
-                    {JSON.stringify(responseResult.data, null, 2)}
-                  </pre>
-                  {responseResult.data?.event_id && (
-                    <div className="pt-2 flex justify-end font-sans">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        icon={ExternalLink}
-                        onClick={() => {
-                          onClose();
-                          onInspectEvent?.(responseResult.data.event_id);
-                        }}
-                      >
-                        Inspect Event Details & Status →
-                      </Button>
+              {/* STAGE 2: Destination Forwarding Delivery Result */}
+              {responseResult.success && (
+                <div className="transition-all animate-in fade-in space-y-2">
+                  {isCheckingDelivery && !deliveryResult ? (
+                    <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/70 text-blue-900 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <RotateCw className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                        <div>
+                          <span className="font-bold text-xs block">
+                            Stage 2: Forwarding to Destination Target...
+                          </span>
+                          <span className="text-[11px] text-blue-700 font-mono truncate max-w-sm block">
+                            {endpoint.target_url}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge status="pending" label="In-Flight" />
                     </div>
-                  )}
+                  ) : deliveryResult ? (
+                    <div
+                      className={`p-4 rounded-xl border text-xs transition-all ${
+                        deliveryResult.status === 'delivered'
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+                          : deliveryResult.status === 'retrying'
+                          ? 'bg-amber-50/80 border-amber-300 text-amber-950'
+                          : deliveryResult.status === 'failed'
+                          ? 'bg-red-50/80 border-red-300 text-red-950'
+                          : 'bg-blue-50/70 border-blue-200 text-blue-950'
+                      }`}
+                    >
+                      {/* Stage 2 Header */}
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10 font-sans">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              deliveryResult.status === 'delivered'
+                                ? 'bg-emerald-200 text-emerald-800'
+                                : deliveryResult.status === 'retrying'
+                                ? 'bg-amber-200 text-amber-800'
+                                : 'bg-red-200 text-red-800'
+                            }`}
+                          >
+                            2
+                          </span>
+                          <div>
+                            <span className="font-bold text-xs block">
+                              {deliveryResult.status === 'delivered'
+                                ? 'Stage 2: Outbound Delivery Succeeded'
+                                : deliveryResult.status === 'retrying'
+                                ? 'Stage 2: Outbound Delivery Retrying (Target Crashed / 500)'
+                                : 'Stage 2: Outbound Delivery Failed (DLQ)'}
+                            </span>
+                            <span className="text-[11px] opacity-80 font-normal">
+                              HookRelay Dispatcher → Destination Target
+                            </span>
+                          </div>
+                        </div>
+
+                        <Badge
+                          status={deliveryResult.status}
+                          label={
+                            deliveryResult.status === 'delivered'
+                              ? `HTTP ${deliveryResult.last_status_code || 200} • Delivered`
+                              : deliveryResult.status === 'retrying'
+                              ? `HTTP ${deliveryResult.last_status_code || 500} • Retrying`
+                              : `HTTP ${deliveryResult.last_status_code || 500} • Failed`
+                          }
+                        />
+                      </div>
+
+                      {/* Delivery Stats Bar */}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-gray-700 bg-white/90 p-2 rounded-lg border border-current/15 mb-2.5">
+                        <span className="font-semibold text-gray-900">
+                          Attempt {deliveryResult.attempt_count} of 5
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span>{deliveryResult.latency_ms ?? 0}ms latency</span>
+                        <span className="text-gray-300">|</span>
+                        <span className="truncate max-w-[280px] text-gray-600 font-sans" title={endpoint.target_url}>
+                          Target: {endpoint.target_url}
+                        </span>
+                      </div>
+
+                      {/* Error & Retry Details */}
+                      {deliveryResult.last_error && (
+                        <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 font-mono text-xs mb-2">
+                          <span className="font-semibold">Destination Error:</span> {deliveryResult.last_error}
+                        </div>
+                      )}
+
+                      {deliveryResult.status === 'retrying' && deliveryResult.next_attempt_at && (
+                        <div className="flex items-center justify-between text-[11px] font-mono text-amber-900 bg-amber-100/70 px-2.5 py-1.5 rounded-lg mb-2">
+                          <span>Next retry scheduled: {new Date(deliveryResult.next_attempt_at).toLocaleTimeString()}</span>
+                          <span className="text-[10px] uppercase font-bold bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
+                            Backoff Active
+                          </span>
+                        </div>
+                      )}
+
+                      {deliveryResult.status === 'retrying' && (
+                        <p className="text-[11px] text-amber-900/90 font-sans leading-relaxed">
+                          HookRelay reliably intercepted the 500 error from your target. Your payload is preserved in PostgreSQL and automatic exponential backoff retries are active.
+                        </p>
+                      )}
+
+                      {deliveryResult.status === 'delivered' && (
+                        <p className="text-[11px] text-emerald-800 font-sans leading-relaxed">
+                          Your target endpoint received and acknowledged the webhook with HTTP 200 OK.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* Actions Bar */}
+                  <div className="pt-1 flex items-center justify-between font-sans">
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      icon={RotateCw}
+                      isLoading={isCheckingDelivery}
+                      onClick={() => pollDeliveryStatus(responseResult.data.event_id)}
+                    >
+                      Refresh Delivery Status
+                    </Button>
+
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={ExternalLink}
+                      onClick={() => {
+                        onClose();
+                        onInspectEvent?.(responseResult.data.event_id);
+                      }}
+                    >
+                      Inspect Full Event &amp; Retry Logs →
+                    </Button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-red-700">{responseResult.error}</p>
               )}
             </div>
           )}
