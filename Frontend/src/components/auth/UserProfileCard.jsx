@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Badge from '../common/Badge';
+import Logo from '../common/Logo';
 import {
   updateProfileApi,
   changePasswordApi,
@@ -200,7 +201,7 @@ export const UserProfileCard = () => {
   // Integration snippets
   const getCodeSnippet = () => {
     if (snippetLang === 'curl') {
-      return `curl -X GET "http://localhost:8000/endpoints" \\
+      return `curl -X GET "https://api.hookrelay.dev/v1/endpoints" \\
   -H "Authorization: Bearer hr_live_YOUR_API_KEY" \\
   -H "Content-Type: application/json"`;
     }
@@ -213,12 +214,12 @@ headers = {
     "Content-Type": "application/json"
 }
 
-response = requests.get("http://localhost:8000/endpoints", headers=headers)
+response = requests.get("https://api.hookrelay.dev/v1/endpoints", headers=headers)
 print(response.json())`;
     }
     if (snippetLang === 'nodejs') {
       return `// Using standard fetch in Node.js 18+
-const res = await fetch("http://localhost:8000/endpoints", {
+const res = await fetch("https://api.hookrelay.dev/v1/endpoints", {
   headers: {
     "Authorization": "Bearer hr_live_YOUR_API_KEY",
     "Content-Type": "application/json"
@@ -355,16 +356,19 @@ console.log(mailboxes);`;
       {/* Account Overview Header Card */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-base font-semibold text-gray-900">
-                {user?.full_name ? `${user.full_name} (${user.email})` : user?.email}
-              </h2>
-              <Badge status="delivered" label="Active User" />
+          <div className="flex items-center gap-3.5">
+            <Logo size="lg" showText={false} className="h-10 w-10 rounded-xl shadow-2xs border border-gray-100 bg-gray-50/50 p-1" />
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-semibold text-gray-900">
+                  {user?.full_name ? `${user.full_name} (${user.email})` : user?.email}
+                </h2>
+                <Badge status="delivered" label="Active User" />
+              </div>
+              <p className="text-xs text-gray-500 font-mono mt-0.5">
+                Account ID: <span className="text-gray-700">{user?.id}</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500 font-mono mt-1">
-              Account ID: <span className="text-gray-700">{user?.id}</span>
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -1044,10 +1048,10 @@ console.log(mailboxes);`;
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-indigo-600" />
+              <div className="flex items-center gap-2.5">
+                <Logo size="sm" showText={false} className="h-6 w-6 rounded-md shadow-2xs" />
                 <h3 className="text-base font-bold text-gray-900">
-                  System Architecture &amp; Platform Health
+                  HookRelay System Architecture &amp; Platform Health
                 </h3>
               </div>
               <button

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sendIngestWebhook, fetchEventDeliveries } from '../../api/client';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
+import Logo from '../common/Logo';
 import {
   X,
   Send,
@@ -434,10 +435,8 @@ export const WebhookTestModal = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <Zap className="w-4 h-4" />
-            </div>
+          <div className="flex items-center gap-3">
+            <Logo size="md" showText={false} className="h-8 w-8 rounded-lg shadow-2xs" />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-gray-900 tracking-tight">

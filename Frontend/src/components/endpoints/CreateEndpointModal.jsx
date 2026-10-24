@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Button from '../common/Button';
 import Input from '../common/Input';
+import Logo from '../common/Logo';
 
 const PROVIDER_OPTIONS = [
   {
@@ -286,16 +287,19 @@ export const CreateEndpointModal = ({ isOpen, onClose, onSubmit, isLoading }) =>
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Create Webhook Mailbox</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Set up a dedicated ingestion mailbox with custom branding, target URL, and cryptographic verification.
-            </p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+          <div className="flex items-center gap-3">
+            <Logo size="md" showText={false} className="h-8 w-8 rounded-lg shadow-2xs" />
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Create Webhook Mailbox</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Set up a dedicated ingestion mailbox with custom branding, target URL, and cryptographic verification.
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-md transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />

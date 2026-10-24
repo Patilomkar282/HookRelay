@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchEventDetail, fetchEventDeliveries, replayEvent } from '../../api/client';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
+import Logo from '../common/Logo';
 import {
   X,
   Copy,
@@ -74,8 +75,9 @@ export const EventDetailModal = ({ eventId, onClose }) => {
     : '{}';
 
   // Construct replay curl command
+  const replayBaseUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.origin.includes('5173') ? 'http://localhost:8000' : (typeof window !== 'undefined' ? window.location.origin : 'https://api.hookrelay.dev'));
   const curlCommand = event
-    ? `curl -X POST "http://localhost:8000/events/replay" \\\n` +
+    ? `curl -X POST "${replayBaseUrl}/events/replay" \\\n` +
       Object.entries(event.headers || {})
         .filter(([k]) => !['host', 'content-length'].includes(k.toLowerCase()))
         .map(([k, v]) => `  -H "${k}: ${v}" \\`)
@@ -107,31 +109,34 @@ export const EventDetailModal = ({ eventId, onClose }) => {
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-base font-semibold text-gray-900">Event & Delivery Inspector</h3>
-              {event && (
-                <Badge
-                  status={
-                    event.signature_valid
-                      ? 'delivered'
-                      : hasSignatureHeader
-                      ? 'failed'
-                      : 'pending'
-                  }
-                  label={
-                    event.signature_valid
-                      ? 'Signature Valid (HMAC-SHA256)'
-                      : hasSignatureHeader
-                      ? 'Invalid Signature'
-                      : 'Unsigned / Generic'
-                  }
-                />
-              )}
+          <div className="flex items-center gap-3">
+            <Logo size="md" showText={false} className="h-8 w-8 rounded-lg shadow-2xs" />
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base font-semibold text-gray-900">Event & Delivery Inspector</h3>
+                {event && (
+                  <Badge
+                    status={
+                      event.signature_valid
+                        ? 'delivered'
+                        : hasSignatureHeader
+                        ? 'failed'
+                        : 'pending'
+                    }
+                    label={
+                      event.signature_valid
+                        ? 'Signature Valid (HMAC-SHA256)'
+                        : hasSignatureHeader
+                        ? 'Invalid Signature'
+                        : 'Unsigned / Generic'
+                    }
+                  />
+                )}
+              </div>
+              <p className="text-xs text-gray-500 font-mono mt-0.5">
+                ID: {eventId}
+              </p>
             </div>
-            <p className="text-xs text-gray-500 font-mono mt-0.5">
-              ID: {eventId}
-            </p>
           </div>
           <button
             onClick={onClose}

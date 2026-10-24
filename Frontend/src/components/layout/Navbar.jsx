@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useEventWebSocket } from '../../context/WebSocketContext';
+import Logo from '../common/Logo';
 import {
   Radio,
-  ExternalLink,
   LogOut,
   Menu,
   X,
@@ -27,40 +27,36 @@ export const Navbar = ({ health, activeTab = 'overview', onSelectTab }) => {
     { id: 'account', label: 'Account', icon: User },
   ];
 
-  const docsUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/docs`;
-
   const handleSelectMobileTab = (tabId) => {
     onSelectTab?.(tabId);
     setMobileMenuOpen(false);
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30 w-full max-w-full">
-      <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 h-14 flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-30 w-full max-w-full shadow-2xs">
+      <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 h-20 sm:h-24 md:h-26 flex items-center justify-between">
         {/* Left: Brand & Desktop Navigation */}
-        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
+        <div className="flex items-center gap-5 sm:gap-9 min-w-0">
           <button
             onClick={() => onSelectTab?.('overview')}
-            className="flex items-center gap-2 focus:outline-none shrink-0 cursor-pointer"
+            className="flex items-center focus:outline-none shrink-0 cursor-pointer transition-transform duration-150 hover:scale-[1.02]"
+            title="HookRelay — Go to Overview"
           >
-            <div className="w-7 h-7 rounded-lg bg-gray-900 text-white flex items-center justify-center shadow-xs">
-              <Radio className="w-4 h-4 text-indigo-400" />
-            </div>
-            <span className="font-bold text-gray-900 text-sm tracking-tight">HookRelay</span>
+            <Logo className="h-14 sm:h-16 md:h-20 lg:h-22 w-auto object-contain drop-shadow-xs" />
           </button>
 
           {/* Desktop Navigation */}
           {isAuthenticated && (
-            <nav className="hidden sm:flex items-center gap-1" aria-label="Main navigation">
+            <nav className="hidden sm:flex items-center gap-1.5 ml-1" aria-label="Main navigation">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => onSelectTab?.(item.id)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       isActive
-                        ? 'text-gray-900 bg-gray-100 font-semibold shadow-2xs'
+                        ? 'text-gray-900 bg-gray-100 font-bold shadow-2xs'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
@@ -94,15 +90,7 @@ export const Navbar = ({ health, activeTab = 'overview', onSelectTab }) => {
             )
           )}
 
-          <a
-            href={docsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="hidden lg:flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <span>API Docs</span>
-            <ExternalLink className="w-3 h-3 text-gray-400" />
-          </a>
+
 
           {isAuthenticated && (
             <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-gray-200">
@@ -196,18 +184,7 @@ export const Navbar = ({ health, activeTab = 'overview', onSelectTab }) => {
             })}
           </div>
 
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-            <a
-              href={docsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 text-indigo-600 font-medium hover:underline"
-            >
-              <span>Interactive OpenAPI Docs</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <span className="text-[11px] text-gray-400">v1.0.0</span>
-          </div>
+
         </div>
       )}
     </header>

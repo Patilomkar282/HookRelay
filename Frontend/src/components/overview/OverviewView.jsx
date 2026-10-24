@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchEndpoints } from '../../api/client';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
+import Logo from '../common/Logo';
+import Hero3DVisualizer from './Hero3DVisualizer';
 import {
   Radio,
   Inbox,
@@ -68,24 +70,35 @@ export const OverviewView = ({
 
   return (
     <div className="space-y-6 text-left animate-in fade-in duration-150">
-      {/* Hero Welcome Banner */}
-      <div className="bg-gradient-to-r from-gray-950 via-gray-900 to-indigo-950 text-white rounded-2xl p-6 sm:p-8 shadow-md relative overflow-hidden border border-gray-800">
-        <div className="relative z-10 max-w-3xl space-y-3">
+      {/* Hero Welcome Banner with 3D Holographic Webhook Relay Visualizer */}
+      <div className="bg-[#080d1a] text-white rounded-2xl p-6 sm:p-8 lg:p-9 shadow-2xl relative overflow-hidden border border-slate-800/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+        {/* Top Glowing Prism Edge */}
+        <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/60 via-indigo-500/60 to-transparent pointer-events-none" />
+
+        {/* Cybernetic Tech Mesh Grid Background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf808_1px,transparent_1px),linear-gradient(to_bottom,#38bdf808_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+
+        {/* Ambient Corner Plasma Glows */}
+        <div className="absolute -left-20 -top-20 w-72 h-72 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-cyan-600/10 blur-3xl pointer-events-none" />
+
+        {/* Left: Headline, Description & Actions */}
+        <div className="relative z-10 max-w-2xl space-y-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-2xs">
               Enterprise Webhook Gateway
             </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Live Ingestion Active
             </span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            High-Reliability Webhook Infrastructure & Observability
+          <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-white leading-tight">
+            High-Reliability Webhook Infrastructure &amp; Observability
           </h2>
 
-          <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
             Ingest external webhooks from Razorpay, GitHub, Stripe, and custom services with sub-second WebSocket observability, cryptographic HMAC verification, lock-free delivery queues, and instant 1-click failure replays.
           </p>
 
@@ -93,7 +106,7 @@ export const OverviewView = ({
             <Button
               variant="primary"
               size="md"
-              className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow-sm"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow-lg shadow-indigo-600/30 cursor-pointer"
               icon={Plus}
               onClick={onOpenCreateEndpoint}
             >
@@ -103,7 +116,7 @@ export const OverviewView = ({
               <Button
                 variant="secondary"
                 size="md"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs cursor-pointer"
                 icon={Zap}
                 onClick={() => onOpenTestModal(primaryEndpoint)}
               >
@@ -112,16 +125,18 @@ export const OverviewView = ({
             )}
             <button
               onClick={() => onNavigateTab('events')}
-              className="text-xs text-indigo-300 hover:text-white font-medium flex items-center gap-1 transition-colors pl-2 cursor-pointer"
+              className="text-xs text-indigo-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors pl-2 cursor-pointer group"
             >
               <span>Inspect Live Stream</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
         </div>
 
-        {/* Decorative background glow */}
-        <div className="absolute right-0 top-0 bottom-0 w-96 bg-gradient-to-l from-indigo-500/15 via-indigo-600/5 to-transparent pointer-events-none" />
+        {/* Right: 3D Holographic Webhook Relay Core & Gyroscope */}
+        <div className="relative z-10 shrink-0 self-center lg:self-auto flex items-center justify-center">
+          <Hero3DVisualizer />
+        </div>
       </div>
 
       {/* Metrics Row (4 Columns Full Width) */}
@@ -131,8 +146,8 @@ export const OverviewView = ({
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-600">
               Total Mailboxes
             </span>
-            <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
-              <Radio className="w-4 h-4" />
+            <div className="p-1 bg-indigo-50 rounded-lg text-indigo-600 flex items-center justify-center">
+              <Logo size="xs" showText={false} className="w-5 h-5 rounded-xs" />
             </div>
           </div>
           <p className="text-2xl font-bold font-mono text-gray-900">{totalMailboxes}</p>

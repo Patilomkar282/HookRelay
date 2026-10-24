@@ -15,7 +15,7 @@ import WebhookTestModal from './components/tester/WebhookTestModal';
 import EventDetailModal from './components/events/EventDetailModal';
 import Badge from './components/common/Badge';
 import Toast from './components/common/Toast';
-import { ExternalLink } from 'lucide-react';
+import Logo from './components/common/Logo';
 
 function Dashboard() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -50,9 +50,14 @@ function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center text-xs text-gray-500 font-medium">
-        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <span>Initializing HookRelay session...</span>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center max-w-xs text-center space-y-4">
+          <Logo size="lg" className="h-10 sm:h-12 w-auto animate-pulse" />
+          <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+            <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <span>Initializing HookRelay session...</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -120,13 +125,6 @@ function Dashboard() {
                   'Manage your profile, personal API keys, delivery policies, and security credentials.'}
               </p>
             </div>
-
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Production Ready • 99.9% Uptime SLA
-              </span>
-            </div>
           </div>
 
           {/* View Panels */}
@@ -188,33 +186,29 @@ function Dashboard() {
       )}
 
       {/* System Footer */}
-      <footer className="border-t border-gray-200 bg-white py-5 mt-auto">
-        <div className="w-full px-6 lg:px-10 xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-bold text-gray-900 tracking-tight">HookRelay Gateway</span>
-            <span className="text-gray-300">•</span>
-            <span>Enterprise Webhook Delivery Engine</span>
-            <span className="text-gray-300">•</span>
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-medium border border-emerald-200 text-[11px]">
-              Engine v1.0.0 (Production)
+      <footer className="border-t border-gray-200 bg-white py-5 sm:py-6 mt-auto shadow-2xs">
+        <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4">
+            <Logo className="h-12 sm:h-14 md:h-16 w-auto object-contain" />
+            <span className="text-gray-300 hidden sm:inline">•</span>
+            <span className="font-semibold text-gray-700 text-xs sm:text-sm">
+              Enterprise Webhook Platform
+            </span>
+            <span className="text-gray-300 hidden sm:inline">•</span>
+            <span className="text-gray-400 text-xs">
+              © {new Date().getFullYear()} HookRelay Inc. All rights reserved.
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <a
-              href="http://localhost:8000/docs"
-              target="_blank"
-              rel="noreferrer"
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors font-medium"
-            >
-              <span>Interactive OpenAPI Specs</span>
-              <ExternalLink className="w-3 h-3 text-gray-400" />
-            </a>
-            <span className="text-gray-300">|</span>
-            <span className="inline-flex items-center gap-1.5 text-gray-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>TLS 1.3 Active</span>
+          <div className="flex items-center gap-4 sm:gap-5 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>All Systems Operational</span>
             </span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">SOC-2 Type II</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">TLS 1.3 Enforced</span>
           </div>
         </div>
       </footer>

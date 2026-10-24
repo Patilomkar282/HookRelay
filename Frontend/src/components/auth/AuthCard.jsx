@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Radio,
   Lock,
   Mail,
   User,
   Eye,
   EyeOff,
   ArrowRight,
-  ExternalLink,
   AlertCircle,
   Zap,
   ShieldCheck,
-  RotateCcw,
-  Check
+  RotateCcw
 } from 'lucide-react';
+import Logo from '../common/Logo';
 
 const LIVE_EVENTS = [
   {
@@ -40,6 +38,14 @@ const LIVE_EVENTS = [
     latency: '9ms',
     destination: 'inventory.internal/sync',
     badgeColor: 'bg-sky-50 text-sky-700 border-sky-200'
+  },
+  {
+    provider: 'Razorpay',
+    event: 'payment.authorized',
+    payloadDetail: '₹4,999 • rzp_live_99',
+    latency: '12ms',
+    destination: 'checkout.internal/pay',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
   }
 ];
 
@@ -56,14 +62,20 @@ export const AuthCard = () => {
 
   // Micro-interaction states
   const [activeEventIndex, setActiveEventIndex] = useState(0);
-  const [demoPulsed, setDemoPulsed] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState(0);
+  const [flowStep, setFlowStep] = useState(0); // 0: Source->HR, 1: HR->Dest, 2: Dest->HR, 3: HR->Source
 
-  // Cycle through simulated live webhook transmissions every 3.5 seconds
+  // Cycle through simulated live webhook transmissions and bidirectional steps
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveEventIndex((prev) => (prev + 1) % LIVE_EVENTS.length);
-    }, 3500);
+      setFlowStep((prev) => {
+        const next = (prev + 1) % 4;
+        if (next === 0) {
+          setActiveEventIndex((e) => (e + 1) % LIVE_EVENTS.length);
+        }
+        return next;
+      });
+    }, 1100);
     return () => clearInterval(timer);
   }, []);
 
@@ -104,20 +116,6 @@ export const AuthCard = () => {
     }
   };
 
-  const handleFillDemo = () => {
-    setEmail('demo@hookrelay.dev');
-    setPassword('password123');
-    setEmailError('');
-    setPasswordError('');
-    setAuthError(null);
-
-    // Trigger visual pulse feedback
-    setDemoPulsed(true);
-    setTimeout(() => setDemoPulsed(false), 900);
-  };
-
-  const docsUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/docs`;
-
   return (
     <div className="w-full h-full min-h-screen lg:min-h-0 lg:h-screen flex flex-col lg:flex-row bg-white text-gray-900 font-sans selection:bg-indigo-500 selection:text-white lg:overflow-hidden">
       {/* =========================================================================
@@ -128,30 +126,12 @@ export const AuthCard = () => {
         <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-indigo-200/20 blur-3xl pointer-events-none animate-pulse-glow" />
 
         {/* Top Branding */}
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 transition-transform duration-300 hover:scale-105 shrink-0">
-              <Radio className="w-4 h-4 text-white animate-pulse" />
-            </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight text-gray-900 flex items-center gap-1.5">
-                HookRelay
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
-                  Engine v1.0
-                </span>
-              </span>
-              <p className="text-[11px] text-gray-500">Resilient Webhook Gateway</p>
-            </div>
-          </div>
-
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 border border-emerald-200 text-emerald-700 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Operational • TLS 1.3</span>
-          </div>
+        <div className="relative z-10 flex items-center">
+          <Logo className="h-12 sm:h-14 md:h-16 w-auto drop-shadow-2xs" />
         </div>
 
-        {/* Main Content Area: Compact, Proportional & Centered */}
-        <div className="relative z-10 my-4 lg:my-auto max-w-lg">
+        {/* Main Content Area: Responsive & Cleanly Fitted */}
+        <div className="relative z-10 my-4 lg:my-auto w-full max-w-xl xl:max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2.5">
             <Zap className="w-3 h-3 text-indigo-600" />
             Zero-Loss Ingestion Pipeline
@@ -161,36 +141,60 @@ export const AuthCard = () => {
             Reliable webhook ingestion with instant 202 acks.
           </h1>
 
-          <p className="mt-2 text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg">
+          <p className="mt-2 text-xs sm:text-sm text-gray-600 leading-relaxed max-w-xl">
             Shield downstream applications from traffic spikes. Automatically verify HMAC
             signatures, ingest payloads with sub-15ms response times, and replay failed deliveries safely.
           </p>
 
           {/* =========================================================================
-              COMPACT ANIMATED PIPELINE
+              REALTIME BIDIRECTIONAL WEBHOOK PIPELINE
               ========================================================================= */}
-          <div className="mt-5 p-3.5 rounded-xl bg-white/90 border border-gray-200/90 shadow-2xs relative overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 text-xs">
-              <span className="font-semibold text-gray-700 flex items-center gap-1.5 text-[11px]">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
-                Live Ingestion Telemetry
-              </span>
-              <span className="text-[10px] text-gray-400 font-mono">
-                Auto-cycling (3.5s)
-              </span>
+          <div className="mt-5 w-full p-3 sm:p-3.5 rounded-xl bg-white/95 border border-gray-200 shadow-sm relative overflow-hidden">
+            {/* Telemetry Header */}
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2.5 mb-3 border-b border-gray-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="font-bold text-gray-800 text-[11px] tracking-tight">
+                  Realtime Webhook Relay Engine
+                </span>
+                <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 hidden sm:inline">
+                  Bi-Directional Flow
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono shrink-0">
+                <span
+                  className={`px-2 py-0.5 rounded-full font-semibold transition-all duration-300 ${
+                    flowStep === 0 || flowStep === 1
+                      ? 'bg-indigo-100 text-indigo-800 font-bold'
+                      : 'bg-emerald-100 text-emerald-800 font-bold'
+                  }`}
+                >
+                  {flowStep === 0 && '1. Ingesting POST →'}
+                  {flowStep === 1 && '2. Forwarding Target →'}
+                  {flowStep === 2 && '3. ← Target 200 OK'}
+                  {flowStep === 3 && '4. ← 202 Confirmed'}
+                </span>
+              </div>
             </div>
 
-            {/* 3-Step Node Visualizer */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-center">
+            {/* 3 Nodes with Bidirectional Animated Connectors */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1 sm:gap-1.5 md:gap-2">
               {/* Step 1: Provider / Source */}
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-gray-200">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <div
+                className={`flex-1 min-w-0 p-2 sm:p-2.5 rounded-xl border transition-all duration-300 ${
+                  flowStep === 0
+                    ? 'bg-white border-indigo-400 shadow-sm ring-2 ring-indigo-400/25'
+                    : flowStep === 3
+                    ? 'bg-emerald-50/50 border-emerald-300'
+                    : 'bg-slate-50/80 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">
                     Source
                   </span>
                   <span
-                    className={`text-[9px] px-1 py-0.5 rounded font-semibold border ${currentEvent.badgeColor}`}
+                    className={`text-[9px] px-1 py-0.5 rounded font-semibold border shrink-0 ${currentEvent.badgeColor}`}
                   >
                     {currentEvent.provider}
                   </span>
@@ -203,32 +207,171 @@ export const AuthCard = () => {
                 </p>
               </div>
 
+              {/* Connector 1: Source <---> HookRelay (Desktop) */}
+              <div className="hidden sm:flex flex-col items-center justify-center w-8 sm:w-11 md:w-13 shrink-0 px-0.5 select-none">
+                {/* Forward Lane (Top): POST */}
+                <div className="w-full flex flex-col items-center mb-1.5">
+                  <div className="flex items-center justify-between w-full text-[7.5px] font-mono font-bold text-indigo-700 leading-none mb-0.5">
+                    <span>POST</span>
+                    <span className="text-[7px] text-indigo-400">→</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-indigo-100/90 rounded-full relative overflow-visible flex items-center shadow-2xs">
+                    {/* Animated Traveling Packet */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-indigo-600 shadow-sm shadow-indigo-500 ${
+                        flowStep === 0 ? 'animate-flow-forward-x scale-125 ring-2 ring-indigo-300' : 'animate-flow-forward-x opacity-60'
+                      }`}
+                    />
+                    {/* Arrow Stream */}
+                    <div className="w-full flex justify-around text-indigo-500 text-[9px] font-bold leading-none select-none animate-chevron-right">
+                      <span>›</span>
+                      <span>›</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reverse Lane (Bottom): 202 ACK */}
+                <div className="w-full flex flex-col items-center mt-0.5">
+                  <div className="w-full h-1.5 bg-emerald-100/90 rounded-full relative overflow-visible flex items-center shadow-2xs">
+                    {/* Animated Traveling Return Packet */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-400 ${
+                        flowStep === 3 ? 'animate-flow-reverse-x scale-125 ring-2 ring-emerald-300' : 'animate-flow-reverse-x opacity-60'
+                      }`}
+                    />
+                    {/* Arrow Stream Reverse */}
+                    <div className="w-full flex justify-around text-emerald-600 text-[9px] font-bold leading-none select-none animate-chevron-left">
+                      <span>‹</span>
+                      <span>‹</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between w-full text-[7.5px] font-mono font-bold text-emerald-700 leading-none mt-0.5">
+                    <span className="text-[7px] text-emerald-500">←</span>
+                    <span>202</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Connector 1: Source <---> HookRelay (Mobile Vertical) */}
+              <div className="flex sm:hidden items-center justify-around py-1.5 bg-gray-50/60 rounded-lg my-0.5">
+                <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-indigo-700">
+                  <span>POST ▼</span>
+                  <div className="h-4 w-1.5 bg-indigo-100 rounded-full relative overflow-hidden">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-600 animate-flow-forward-y" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-emerald-700">
+                  <div className="h-4 w-1.5 bg-emerald-100 rounded-full relative overflow-hidden">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500 animate-flow-reverse-y" />
+                  </div>
+                  <span>▲ 202 ACK</span>
+                </div>
+              </div>
+
               {/* Step 2: HookRelay Ingestion Gateway */}
-              <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-200/90 shadow-2xs">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                    HookRelay
-                  </span>
-                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded">
+              <div
+                className={`flex-1 min-w-0 p-2 sm:p-2.5 rounded-xl border transition-all duration-300 ${
+                  flowStep === 1 || flowStep === 3
+                    ? 'bg-indigo-50/90 border-indigo-500 shadow-sm ring-2 ring-indigo-500/25'
+                    : 'bg-indigo-50/60 border-indigo-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Logo size="xs" showText={false} className="h-3.5 w-3.5 rounded-xs shrink-0" />
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider truncate">
+                      HookRelay
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded shrink-0">
                     202 Ack
                   </span>
                 </div>
-                <p className="text-[11px] font-semibold text-indigo-950 flex items-center gap-1">
+                <p className="text-[11px] font-semibold text-indigo-950 flex items-center gap-1 truncate">
                   <ShieldCheck className="w-3 h-3 text-indigo-600 shrink-0" />
-                  <span>HMAC Valid</span>
+                  <span className="truncate">HMAC Valid</span>
                 </p>
-                <p className="text-[10px] text-indigo-600 font-mono mt-0.5">
+                <p className="text-[10px] text-indigo-600 font-mono mt-0.5 truncate">
                   Latency: <span className="font-semibold">{currentEvent.latency}</span>
                 </p>
               </div>
 
+              {/* Connector 2: HookRelay <---> Destination (Desktop) */}
+              <div className="hidden sm:flex flex-col items-center justify-center w-8 sm:w-11 md:w-13 shrink-0 px-0.5 select-none">
+                {/* Forward Lane (Top): SEND */}
+                <div className="w-full flex flex-col items-center mb-1.5">
+                  <div className="flex items-center justify-between w-full text-[7.5px] font-mono font-bold text-indigo-700 leading-none mb-0.5">
+                    <span>SEND</span>
+                    <span className="text-[7px] text-indigo-400">→</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-indigo-100/90 rounded-full relative overflow-visible flex items-center shadow-2xs">
+                    {/* Animated Traveling Packet */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-indigo-600 shadow-sm shadow-indigo-500 ${
+                        flowStep === 1 ? 'animate-flow-forward-x scale-125 ring-2 ring-indigo-300' : 'animate-flow-forward-x opacity-60'
+                      }`}
+                      style={{ animationDelay: '0.4s' }}
+                    />
+                    {/* Arrow Stream */}
+                    <div className="w-full flex justify-around text-indigo-500 text-[9px] font-bold leading-none select-none animate-chevron-right">
+                      <span>›</span>
+                      <span>›</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reverse Lane (Bottom): 200 OK */}
+                <div className="w-full flex flex-col items-center mt-0.5">
+                  <div className="w-full h-1.5 bg-emerald-100/90 rounded-full relative overflow-visible flex items-center shadow-2xs">
+                    {/* Animated Traveling Return Packet */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-400 ${
+                        flowStep === 2 ? 'animate-flow-reverse-x scale-125 ring-2 ring-emerald-300' : 'animate-flow-reverse-x opacity-60'
+                      }`}
+                      style={{ animationDelay: '0.4s' }}
+                    />
+                    {/* Arrow Stream Reverse */}
+                    <div className="w-full flex justify-around text-emerald-600 text-[9px] font-bold leading-none select-none animate-chevron-left">
+                      <span>‹</span>
+                      <span>‹</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between w-full text-[7.5px] font-mono font-bold text-emerald-700 leading-none mt-0.5">
+                    <span className="text-[7px] text-emerald-500">←</span>
+                    <span>200</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Connector 2: HookRelay <---> Destination (Mobile Vertical) */}
+              <div className="flex sm:hidden items-center justify-around py-1.5 bg-gray-50/60 rounded-lg my-0.5">
+                <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-indigo-700">
+                  <span>SEND ▼</span>
+                  <div className="h-4 w-1.5 bg-indigo-100 rounded-full relative overflow-hidden">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-600 animate-flow-forward-y" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-emerald-700">
+                  <div className="h-4 w-1.5 bg-emerald-100 rounded-full relative overflow-hidden">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500 animate-flow-reverse-y" />
+                  </div>
+                  <span>▲ 200 OK</span>
+                </div>
+              </div>
+
               {/* Step 3: Destination Consumer */}
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-gray-200">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <div
+                className={`flex-1 min-w-0 p-2 sm:p-2.5 rounded-xl border transition-all duration-300 ${
+                  flowStep === 2
+                    ? 'bg-emerald-50/90 border-emerald-400 shadow-sm ring-2 ring-emerald-400/25'
+                    : 'bg-slate-50/80 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">
                     Destination
                   </span>
-                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded">
+                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded shrink-0">
                     200 OK
                   </span>
                 </div>
@@ -242,17 +385,25 @@ export const AuthCard = () => {
             </div>
 
             {/* Connecting Footer */}
-            <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Zero message loss • Jittered retry queue</span>
+            <div className="mt-3 pt-2.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-1 text-indigo-700 font-semibold font-mono">
+                  <span>→ Forward:</span> <span className="text-gray-500 font-normal">Payload Dispatch</span>
+                </span>
+                <span className="text-gray-300 hidden sm:inline">•</span>
+                <span className="flex items-center gap-1 text-emerald-700 font-semibold font-mono">
+                  <span>← Reverse:</span> <span className="text-gray-500 font-normal">ACK &amp; Telemetry</span>
+                </span>
               </div>
-              <div className="flex items-center gap-1 font-mono">
+              <div className="flex items-center gap-1 font-mono shrink-0">
                 {LIVE_EVENTS.map((ev, idx) => (
                   <button
                     key={ev.provider}
                     type="button"
-                    onClick={() => setActiveEventIndex(idx)}
+                    onClick={() => {
+                      setActiveEventIndex(idx);
+                      setFlowStep(0);
+                    }}
                     className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
                       activeEventIndex === idx ? 'bg-indigo-600 w-3' : 'bg-gray-300 hover:bg-gray-400'
                     }`}
@@ -310,17 +461,9 @@ export const AuthCard = () => {
         </div>
 
         {/* Minimal Footer Info */}
-        <div className="relative z-10 pt-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
-          <span className="text-[11px]">Enterprise Webhook Platform</span>
-          <a
-            href={docsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-indigo-600 flex items-center gap-1 transition-colors text-[11px] font-medium group"
-          >
-            <span>Interactive OpenAPI Specs</span>
-            <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-indigo-600 transition-colors" />
-          </a>
+        <div className="relative z-10 pt-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-400">
+          <span className="text-[11px] font-medium text-gray-500">Enterprise Webhook Platform</span>
+          <span className="text-[11px] text-gray-400">SOC-2 Type II &amp; ISO 27001 Compliant</span>
         </div>
       </div>
 
@@ -328,23 +471,6 @@ export const AuthCard = () => {
           RIGHT COLUMN: Compact Form Fitted Cleanly to Viewport
           ========================================================================= */}
       <div className="w-full lg:w-1/2 h-full flex flex-col justify-between p-4 sm:p-8 lg:p-10 xl:p-12 bg-white relative overflow-y-auto lg:overflow-hidden">
-        {/* Top Sub-Bar */}
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Auth Service Ready
-          </span>
-
-          <a
-            href={docsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11px] text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors font-medium"
-          >
-            <span>API Docs</span>
-            <ExternalLink className="w-3 h-3 text-gray-400" />
-          </a>
-        </div>
 
         {/* Centered Form Wrapper: Compact & Fitted */}
         <div className="my-auto py-3 max-w-sm sm:max-w-md w-full mx-auto">
@@ -386,6 +512,11 @@ export const AuthCard = () => {
 
           {/* Form Content */}
           <div key={isRegister ? 'register-view' : 'signin-view'} className="animate-fade-in-up">
+            {/* Mobile Brand Logo */}
+            <div className="flex lg:hidden items-center justify-center mb-5">
+              <Logo className="h-12 sm:h-14 w-auto drop-shadow-2xs" />
+            </div>
+
             {/* Title & Microcopy */}
             <div className="mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
@@ -397,34 +528,6 @@ export const AuthCard = () => {
                   : 'Enter your credentials to access your webhook mailboxes and event stream.'}
               </p>
             </div>
-
-            {/* Quick Demo Fill Button with Tactile Feedback */}
-            {!isRegister && (
-              <div className="mb-3.5 p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-center justify-between gap-2 transition-colors">
-                <div className="text-left">
-                  <span className="text-xs font-semibold text-indigo-900 block leading-tight">
-                    Instant Demo Credentials
-                  </span>
-                  <span className="text-[10px] text-indigo-700">
-                    Preloaded with sample webhooks & telemetry
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleFillDemo}
-                  className="px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium cursor-pointer transition-all duration-150 active:scale-95 shadow-2xs flex items-center gap-1 shrink-0"
-                >
-                  {demoPulsed ? (
-                    <>
-                      <Check className="w-3 h-3" />
-                      <span>Filled!</span>
-                    </>
-                  ) : (
-                    <span>Fill Demo</span>
-                  )}
-                </button>
-              </div>
-            )}
 
             {/* Error Banner */}
             {authError && (
@@ -492,8 +595,6 @@ export const AuthCard = () => {
                     required
                     autoComplete="email"
                     className={`w-full h-9 pl-8 pr-3 text-xs bg-white border rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all duration-150 ${
-                      demoPulsed ? 'animate-field-highlight' : ''
-                    } ${
                       emailError
                         ? 'border-red-400 focus:ring-red-400/20 focus:border-red-500'
                         : 'border-gray-300 focus:ring-indigo-500/20 focus:border-indigo-600'
@@ -533,8 +634,6 @@ export const AuthCard = () => {
                     required
                     autoComplete={isRegister ? 'new-password' : 'current-password'}
                     className={`w-full h-9 pl-8 pr-9 text-xs bg-white border rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all duration-150 ${
-                      demoPulsed ? 'animate-field-highlight' : ''
-                    } ${
                       passwordError
                         ? 'border-red-400 focus:ring-red-400/20 focus:border-red-500'
                         : 'border-gray-300 focus:ring-indigo-500/20 focus:border-indigo-600'

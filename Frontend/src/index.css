@@ -111,3 +111,187 @@
 .animate-packet {
   animation: packetMove 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+
+/* Real-time Bidirectional Webhook Flow Animations */
+@keyframes flowForwardX {
+  0% {
+    left: 0%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+}
+
+@keyframes flowReverseX {
+  0% {
+    left: 100%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    left: 0%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+}
+
+@keyframes flowForwardY {
+  0% {
+    top: 0%;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+@keyframes flowReverseY {
+  0% {
+    top: 100%;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    top: 0%;
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+@keyframes chevronPulseRight {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(3px);
+  }
+}
+
+@keyframes chevronPulseLeft {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-3px);
+  }
+}
+
+.animate-flow-forward-x {
+  animation: flowForwardX 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-flow-reverse-x {
+  animation: flowReverseX 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-flow-forward-y {
+  animation: flowForwardY 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-flow-reverse-y {
+  animation: flowReverseY 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-chevron-right {
+  animation: chevronPulseRight 1s ease-in-out infinite;
+}
+
+.animate-chevron-left {
+  animation: chevronPulseLeft 1s ease-in-out infinite;
+}
+
+/* 3D Gyroscope and Floating Hologram Keyframes */
+@keyframes spin3dSlow {
+  0% {
+    transform: rotateX(68deg) rotateY(18deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(68deg) rotateY(18deg) rotateZ(360deg);
+  }
+}
+
+@keyframes reverseSpin3dSlow {
+  0% {
+    transform: rotateX(-48deg) rotateY(32deg) rotateZ(360deg);
+  }
+  100% {
+    transform: rotateX(-48deg) rotateY(32deg) rotateZ(0deg);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateZ(55px) translateY(0);
+  }
+  50% {
+    transform: translateZ(55px) translateY(-6px);
+  }
+}
+
+@keyframes floatSlowReverse {
+  0%, 100% {
+    transform: translateZ(65px) translateY(0);
+  }
+  50% {
+    transform: translateZ(65px) translateY(6px);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin3dSlow 18s linear infinite;
+}
+
+.animate-reverse-spin-slow {
+  animation: reverseSpin3dSlow 24s linear infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-float-slow-reverse {
+  animation: floatSlowReverse 5s ease-in-out infinite;
+}
