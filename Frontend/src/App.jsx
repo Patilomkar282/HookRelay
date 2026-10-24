@@ -185,7 +185,7 @@ function Dashboard() {
         />
       )}
 
-      {/* System Footer */}
+
       <footer className="border-t border-gray-200 bg-white py-5 sm:py-6 mt-auto shadow-2xs">
         <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4">
