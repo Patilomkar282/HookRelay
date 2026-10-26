@@ -41,5 +41,8 @@ class EndpointOut(BaseModel):
     open_count: int = 0
     circuit_open_until: Optional[datetime] = None
 
+    # Feature 3: Rules version
+    rules_version: Optional[int] = 0
+
     model_config = ConfigDict(from_attributes=True)
 

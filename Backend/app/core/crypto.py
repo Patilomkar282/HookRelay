@@ -23,6 +23,19 @@ def decrypt_json(token: str) -> dict:
     return json.loads(f.decrypt(raw))
 
 
+def encrypt_string(text: str) -> str:
+    """Encrypt a plain string using Fernet symmetric encryption and return a token."""
+    f = _get_fernet()
+    return f.encrypt(text.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_string(token: str) -> str:
+    """Decrypt a Fernet token and return the plain string."""
+    f = _get_fernet()
+    raw = token.encode("utf-8") if isinstance(token, str) else token
+    return f.decrypt(raw).decode("utf-8")
+
+
 def hint(value: str) -> str:
     """Mask a sensitive secret, displaying only the last 4 characters."""
     if not value:

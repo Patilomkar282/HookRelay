@@ -17,6 +17,7 @@ import CreateEndpointModal from './CreateEndpointModal';
 import EditEndpointModal from './EditEndpointModal';
 import RotateSecretModal from './RotateSecretModal';
 import CircuitHistoryModal from './CircuitHistoryModal';
+import RulesModal from './RulesModal';
 import {
   Plus,
   Radio,
@@ -36,6 +37,7 @@ import {
   Zap,
   RefreshCw,
   Activity,
+  Sliders,
 } from 'lucide-react';
 
 export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) => {
@@ -51,6 +53,7 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
   const [rotatingEndpoint, setRotatingEndpoint] = useState(null);
   const [deletingEndpoint, setDeletingEndpoint] = useState(null);
   const [historyEndpoint, setHistoryEndpoint] = useState(null);
+  const [rulesEndpoint, setRulesEndpoint] = useState(null);
 
   // Toast state
   const [toast, setToast] = useState(null);
@@ -466,6 +469,20 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
                     </button>
 
                     <button
+                      onClick={() => setRulesEndpoint(ep)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-md transition-colors"
+                      title="Configure payload filtering & transformation rules"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Rules</span>
+                      {ep.rules_version > 0 && (
+                        <span className="px-1.5 py-0.2 bg-purple-200 text-purple-800 rounded text-[10px] font-mono font-bold">
+                          v{ep.rules_version}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
                       onClick={() => setEditingEndpoint(ep)}
                       className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                       title="Edit endpoint configuration"
@@ -660,6 +677,19 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
         <CircuitHistoryModal
           endpoint={historyEndpoint}
           onClose={() => setHistoryEndpoint(null)}
+        />
+      )}
+
+      {/* Feature 3: Mailbox Rules & Transformation Modal */}
+      {rulesEndpoint && (
+        <RulesModal
+          endpoint={rulesEndpoint}
+          isOpen={!!rulesEndpoint}
+          onClose={() => setRulesEndpoint(null)}
+          onRulesSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['endpoints'] });
+            showToast('Mailbox transformation rules saved successfully!');
+          }}
         />
       )}
     </div>

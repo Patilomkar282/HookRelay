@@ -122,6 +122,22 @@ export const fetchCircuitEvents = async (id, { limit = 20, offset = 0 } = {}) =>
   return response.data;
 };
 
+// Feature 3: Payload Filtering & Transformation Rules APIs
+export const fetchEndpointRules = async (id) => {
+  const response = await apiClient.get(`/endpoints/${id}/rules`);
+  return response.data;
+};
+
+export const updateEndpointRules = async (id, rules) => {
+  const response = await apiClient.put(`/endpoints/${id}/rules`, rules);
+  return response.data;
+};
+
+export const previewEndpointRules = async (id, previewPayload) => {
+  const response = await apiClient.post(`/endpoints/${id}/rules/preview`, previewPayload);
+  return response.data;
+};
+
 // Webhook Ingest & Event Observability APIs
 export const fetchEndpointEvents = async (
   id,

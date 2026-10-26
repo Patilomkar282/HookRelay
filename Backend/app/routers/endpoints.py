@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -218,5 +218,213 @@ async def list_circuit_events(
         limit=limit,
         offset=offset,
     )
+
+
+# =============================================================================
+# Feature 3 (Module R2): Rules & Transformations Routes
+# =============================================================================
+
+import secrets
+import json
+from sqlalchemy import select
+from app.config import settings
+from app.schemas.rules import (
+    EndpointRulesUpdate,
+    EndpointRulesOut,
+    RulesPreviewRequest,
+    RulesPreviewOut,
+)
+from app.services.rate_limiter import SlidingWindowRateLimiter
+from app.services.transform import process as transform_process, MAX_PAYLOAD_BYTES
+from app.core.crypto import encrypt_string
+from app.models.event import Event
+
+rules_preview_rate_limiter = SlidingWindowRateLimiter(default_limit=10, window_seconds=60)
+
+
+@router.get(
+    "/{id}/rules",
+    response_model=EndpointRulesOut,
+    summary="Get filter and transformation rules for an endpoint",
+)
+async def get_endpoint_rules(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the filter, transformation steps and rules_version for this mailbox.
+    Owner only: returns 404 for unauthorized access. Flag off returns 404.
+    """
+    if not getattr(settings, "FEATURE_RULES", True):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rules feature is disabled")
+
+    endpoint = await get_user_endpoint_by_id(db, current_user.id, id)
+    return EndpointRulesOut(
+        filter=endpoint.filter,
+        transform=endpoint.transform,
+        steps=endpoint.transform,
+        rules_version=endpoint.rules_version or 0,
+    )
+
+
+@router.put(
+    "/{id}/rules",
+    response_model=EndpointRulesOut,
+    summary="Update filter and transformation rules for an endpoint",
+)
+async def update_endpoint_rules(
+    id: str,
+    rules_in: EndpointRulesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Validate and save filtering and transformation rules.
+    Increments rules_version only when rules actually change.
+    When the first transform is saved, securely provisions a forwarding secret.
+    """
+    if not getattr(settings, "FEATURE_RULES", True):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rules feature is disabled")
+
+    endpoint = await get_user_endpoint_by_id(db, current_user.id, id)
+
+    new_filter = rules_in.filter.model_dump() if rules_in.filter else None
+    new_transform = (
+        [s.model_dump(exclude_none=True) for s in rules_in.transform]
+        if rules_in.transform is not None
+        else None
+    )
+
+    # Check if rules changed
+    rules_changed = (endpoint.filter != new_filter) or (endpoint.transform != new_transform)
+
+    if rules_changed:
+        endpoint.filter = new_filter
+        endpoint.transform = new_transform
+        endpoint.rules_version = (endpoint.rules_version or 0) + 1
+
+        # When first transform is configured, provision forwarding secret if not present
+        if new_transform and not endpoint.forward_secret_encrypted:
+            raw_secret = secrets.token_hex(32)
+            endpoint.forward_secret_encrypted = encrypt_string(raw_secret)
+
+        await db.commit()
+        await db.refresh(endpoint)
+
+    return EndpointRulesOut(
+        filter=endpoint.filter,
+        transform=endpoint.transform,
+        steps=endpoint.transform,
+        rules_version=endpoint.rules_version or 0,
+    )
+
+
+@router.post(
+    "/{id}/rules/preview",
+    response_model=RulesPreviewOut,
+    summary="Test and preview rules on stored event or sample payload without forwarding",
+)
+async def preview_endpoint_rules(
+    id: str,
+    preview_in: RulesPreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Test filtering and transformation rules against a stored event or sample JSON.
+    Returns matches, outcome action, transformed output and error. Sends nothing.
+    Rate limit: 10 per minute per user. Maximum payload: 2 MB.
+    """
+    if not getattr(settings, "FEATURE_RULES", True):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rules feature is disabled")
+
+    endpoint = await get_user_endpoint_by_id(db, current_user.id, id)
+
+    # 1. Enforce rate limit (10 per minute per user)
+    rules_preview_rate_limiter.enforce_rate_limit(f"user_{current_user.id}_preview", limit=10)
+
+    # 2. Extract payload and headers
+    if preview_in.event_id:
+        stmt = (
+            select(Event)
+            .where(Event.id == preview_in.event_id, Event.endpoint_id == endpoint.id)
+        )
+        res = await db.execute(stmt)
+        event = res.scalar_one_or_none()
+        if not event:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        headers = event.headers or {}
+        body = event.body
+    elif preview_in.sample_json is not None:
+        headers = preview_in.sample_headers or {}
+        body = preview_in.sample_json
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Either event_id or sample_json must be provided for preview",
+        )
+
+    # 3. Size check (at most 2 MB)
+    if isinstance(body, (bytes, bytearray)):
+        body_bytes = bytes(body)
+    elif isinstance(body, str):
+        body_bytes = body.encode("utf-8")
+    else:
+        try:
+            body_bytes = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid JSON payload: {e}",
+            )
+
+    if len(body_bytes) > MAX_PAYLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Payload size ({len(body_bytes)} bytes) exceeds 2 MB limit",
+        )
+
+    # 4. Resolve effective rules (preview rules override saved endpoint rules if supplied)
+    if preview_in.rules is not None:
+        effective_filter = (
+            preview_in.rules.filter.model_dump() if preview_in.rules.filter else None
+        )
+        effective_transform = (
+            [s.model_dump(exclude_none=True) for s in preview_in.rules.transform]
+            if preview_in.rules.transform is not None
+            else None
+        )
+    else:
+        effective_filter = endpoint.filter
+        effective_transform = endpoint.transform
+
+    rules_dict = {
+        "filter": effective_filter,
+        "transform": effective_transform,
+    }
+
+    # 5. Run pure transform engine
+    outcome = transform_process(
+        rules=rules_dict,
+        headers=headers,
+        raw_body=body_bytes,
+    )
+
+    matches = (outcome.action != "filtered")
+    output_obj = None
+    if outcome.body_bytes:
+        try:
+            output_obj = json.loads(outcome.body_bytes.decode("utf-8"))
+        except Exception:
+            output_obj = outcome.body_bytes.decode("utf-8", errors="replace")
+
+    return RulesPreviewOut(
+        matches=matches,
+        action=outcome.action,
+        output=output_obj,
+        error=outcome.error,
+    )
+
 
 

@@ -1,8 +1,10 @@
 import uuid
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 from sqlalchemy import String, Text, Boolean, Integer, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -93,6 +95,25 @@ class Endpoint(Base):
     )
     probe_started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Feature 3: Payload filtering & transformation rules
+    filter: Mapped[Optional[dict]] = mapped_column(
+        JSONB().with_variant(JSON(), "sqlite"),
+        nullable=True,
+    )
+    transform: Mapped[Optional[list]] = mapped_column(
+        JSONB().with_variant(JSON(), "sqlite"),
+        nullable=True,
+    )
+    rules_version: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+    forward_secret_encrypted: Mapped[Optional[str]] = mapped_column(
+        Text,
         nullable=True,
     )
 

@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    LargeBinary,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -27,7 +28,7 @@ class Delivery(Base):
         nullable=False,
         index=True,
     )
-    # Status: 'pending', 'delivered', 'retrying', 'failed'
+    # Status: 'pending', 'delivered', 'retrying', 'failed', 'filtered'
     status: Mapped[str] = mapped_column(
         String(32),
         default="pending",
@@ -56,6 +57,16 @@ class Delivery(Base):
         nullable=True,
     )
     latency_ms: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    # Feature 3: Transformed payload bytes and applied rules version
+    forward_body: Mapped[Optional[bytes]] = mapped_column(
+        LargeBinary,
+        nullable=True,
+    )
+    rules_version: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )

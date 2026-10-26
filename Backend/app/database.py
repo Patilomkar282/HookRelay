@@ -55,6 +55,13 @@ async def init_db() -> None:
             await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS probe_started_at TIMESTAMP WITH TIME ZONE;"))
             await conn.execute(text("UPDATE endpoints SET circuit_state = 'closed' WHERE circuit_state IS NULL;"))
 
+            # Feature 3: Endpoints rules & transformation columns
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS filter JSONB;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS transform JSONB;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS rules_version INTEGER DEFAULT 0;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS forward_secret_encrypted TEXT;"))
+            await conn.execute(text("UPDATE endpoints SET rules_version = 0 WHERE rules_version IS NULL;"))
+
             # Users table migrations
             await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);"))
             await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS retry_attempts INTEGER DEFAULT 3;"))
@@ -63,3 +70,5 @@ async def init_db() -> None:
 
             # Deliveries table migrations
             await conn.execute(text("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS error_kind VARCHAR(64);"))
+            await conn.execute(text("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS forward_body BYTEA;"))
+            await conn.execute(text("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rules_version INTEGER;"))
