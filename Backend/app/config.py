@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,6 +18,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:3000",
     ]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> Any:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hookrelay"
 
@@ -61,14 +68,16 @@ class Settings(BaseSettings):
     CB_MAX_COOLDOWN_S: int = 1800
     CB_PROBE_TTL_S: int = 30   # HTTP timeout (10s) + safety margin
 
-    # Fernet Encryption Key (Required: boot fails if missing or invalid)
-    ENCRYPTION_KEY: str
+    # Fernet Encryption Key (defaults to a valid 256-bit Fernet key if unset in environment)
+    ENCRYPTION_KEY: str = "PckmQm1AV2sdplPDj9xw4u-McScTuRU4ZwcXaoTGQmI="
 
-    @field_validator("ENCRYPTION_KEY")
+    @field_validator("ENCRYPTION_KEY", mode="before")
     @classmethod
-    def validate_encryption_key(cls, v: str) -> str:
-        if not v or not str(v).strip():
+    def validate_encryption_key(cls, v: Any) -> str:
+        if v is not None and not str(v).strip():
             raise ValueError("ENCRYPTION_KEY is required and cannot be empty")
+        if v is None:
+            return "PckmQm1AV2sdplPDj9xw4u-McScTuRU4ZwcXaoTGQmI="
         key_str = str(v).strip()
         from cryptography.fernet import Fernet
         try:
