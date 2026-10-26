@@ -7,6 +7,7 @@ import {
   deleteEndpoint,
   rotateSigningSecret,
   replayFailedDeliveries,
+  resetCircuit,
 } from '../../api/client';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
@@ -15,6 +16,7 @@ import Toast from '../common/Toast';
 import CreateEndpointModal from './CreateEndpointModal';
 import EditEndpointModal from './EditEndpointModal';
 import RotateSecretModal from './RotateSecretModal';
+import CircuitHistoryModal from './CircuitHistoryModal';
 import {
   Plus,
   Radio,
@@ -33,6 +35,7 @@ import {
   ShieldCheck,
   Zap,
   RefreshCw,
+  Activity,
 } from 'lucide-react';
 
 export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) => {
@@ -47,6 +50,7 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
   const [editingEndpoint, setEditingEndpoint] = useState(null);
   const [rotatingEndpoint, setRotatingEndpoint] = useState(null);
   const [deletingEndpoint, setDeletingEndpoint] = useState(null);
+  const [historyEndpoint, setHistoryEndpoint] = useState(null);
 
   // Toast state
   const [toast, setToast] = useState(null);
@@ -112,6 +116,17 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
       queryClient.invalidateQueries({ queryKey: ['endpoints'] });
       queryClient.invalidateQueries({ queryKey: ['endpointEvents'] });
       showToast(data.message || `Replayed ${data.replayed_count} failed deliveries`);
+    },
+    onError: (err) => showToast(err.message, 'error'),
+  });
+
+  const resetCircuitMutation = useMutation({
+    mutationFn: (endpointId) => resetCircuit(endpointId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['endpoints'] });
+      queryClient.invalidateQueries({ queryKey: ['statsSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['endpointEvents'] });
+      showToast('Circuit resumed! Deliveries will now proceed.');
     },
     onError: (err) => showToast(err.message, 'error'),
   });
@@ -324,6 +339,38 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
                           label={ep.is_active ? 'Active' : 'Paused'}
                         />
                       </button>
+
+                      {/* Circuit Breaker Status Badge */}
+                      {(() => {
+                        const cState = ep.circuit_state || 'closed';
+                        if (cState === 'open') {
+                          let untilStr = '';
+                          if (ep.circuit_open_until) {
+                            const dt = new Date(ep.circuit_open_until);
+                            untilStr = ` until ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 shadow-2xs">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                              <span>Paused{untilStr}</span>
+                            </span>
+                          );
+                        }
+                        if (cState === 'half_open') {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              <span>Testing recovery</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span>Healthy</span>
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 font-mono">
@@ -387,6 +434,35 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
                         }`}
                       />
                       <span>Replay Failed</span>
+                    </button>
+
+                    {/* Circuit Breaker Actions */}
+                    {(ep.circuit_state === 'open' || ep.circuit_state === 'half_open') && (
+                      <button
+                        onClick={() => resetCircuitMutation.mutate(ep.id)}
+                        disabled={resetCircuitMutation.isPending && resetCircuitMutation.variables === ep.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-md shadow-xs transition-all cursor-pointer animate-pulse hover:animate-none"
+                        title="Resume deliveries immediately and clear cooldown"
+                      >
+                        <RotateCw
+                          className={`w-3.5 h-3.5 ${
+                            resetCircuitMutation.isPending &&
+                            resetCircuitMutation.variables === ep.id
+                              ? 'animate-spin'
+                              : ''
+                          }`}
+                        />
+                        <span>Resume now</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setHistoryEndpoint(ep)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                      title="View circuit breaker audit trail"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-gray-500" />
+                      <span>Circuit Log</span>
                     </button>
 
                     <button
@@ -577,6 +653,14 @@ export const EndpointsView = ({ onSelectEndpointForEvents, onOpenTestModal }) =>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Circuit Breaker Audit Trail Modal */}
+      {historyEndpoint && (
+        <CircuitHistoryModal
+          endpoint={historyEndpoint}
+          onClose={() => setHistoryEndpoint(null)}
+        />
       )}
     </div>
   );

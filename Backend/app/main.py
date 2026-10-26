@@ -20,12 +20,15 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"Warning: Database initialization skipped: {exc}")
 
-    # Start background delivery worker loop (SELECT ... FOR UPDATE SKIP LOCKED)
+    # Start background delivery worker loop and alert dispatcher
     worker.start()
+    from app.services.alert_dispatcher import alert_dispatcher
+    alert_dispatcher.start()
 
     yield
 
-    # Gracefully stop delivery worker
+    # Gracefully stop alert dispatcher and delivery worker
+    await alert_dispatcher.stop()
     await worker.stop()
     print(f"Stopping {settings.PROJECT_NAME} backend...")
 
@@ -74,6 +77,22 @@ app.include_router(websocket_router, prefix=settings.API_V1_STR)
 # Mount Stats & Analytics router at /stats and at /api/v1/stats
 app.include_router(stats_router)
 app.include_router(stats_router, prefix=settings.API_V1_STR)
+
+from app.routers.alert_channels import router as alert_channels_router
+from app.routers.alert_rules import router as alert_rules_router
+from app.routers.alert_events import router as alert_events_router
+
+# Mount Alert Channels router at /alert-channels and at /api/v1/alert-channels
+app.include_router(alert_channels_router)
+app.include_router(alert_channels_router, prefix=settings.API_V1_STR)
+
+# Mount Alert Rules router at /alert-rules and at /api/v1/alert-rules
+app.include_router(alert_rules_router)
+app.include_router(alert_rules_router, prefix=settings.API_V1_STR)
+
+# Mount Alert Events router at /alert-events and at /api/v1/alert-events
+app.include_router(alert_events_router)
+app.include_router(alert_events_router, prefix=settings.API_V1_STR)
 
 # Include API v1 Router
 app.include_router(api_router, prefix=settings.API_V1_STR)

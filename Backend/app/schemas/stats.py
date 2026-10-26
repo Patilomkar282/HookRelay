@@ -19,6 +19,8 @@ class StatsSummaryResponse(BaseModel):
     p95_latency_ms: float = Field(..., description="95th percentile latency in milliseconds")
     avg_latency_ms: float = Field(..., description="Average delivery latency in milliseconds")
     events_per_hour: float = Field(..., description="Throughput: average events captured per hour over last 24h")
+    circuits_open: int = Field(0, description="Count of endpoints with open/paused circuit breaker")
+    deliveries_held: int = Field(0, description="Count of queued/retrying deliveries waiting on paused circuits")
     top_failure_reasons: List[FailureReasonItem] = Field(default_factory=list)
 
 

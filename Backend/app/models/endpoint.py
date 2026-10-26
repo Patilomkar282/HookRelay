@@ -1,7 +1,8 @@
 import uuid
 import secrets
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey
+from typing import Optional
+from sqlalchemy import String, Text, Boolean, Integer, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -13,6 +14,12 @@ def generate_slug() -> str:
 
 class Endpoint(Base):
     __tablename__ = "endpoints"
+    __table_args__ = (
+        CheckConstraint(
+            "circuit_state IN ('closed', 'open', 'half_open')",
+            name="ck_endpoints_circuit_state",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -63,6 +70,32 @@ class Endpoint(Base):
         String(128),
         nullable=True,
     )
+
+    # Circuit Breaker state
+    circuit_state: Mapped[str] = mapped_column(
+        String(10),
+        default="closed",
+        nullable=False,
+    )
+    consecutive_failures: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+    open_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+    circuit_open_until: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    probe_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -75,6 +108,11 @@ class Endpoint(Base):
         back_populates="endpoint",
         cascade="all, delete-orphan",
     )
+    circuit_events: Mapped[list["CircuitEvent"]] = relationship(
+        "CircuitEvent",
+        back_populates="endpoint",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
-        return f"<Endpoint id={self.id} slug={self.slug} provider={self.provider_type}>"
+        return f"<Endpoint id={self.id} slug={self.slug} provider={self.provider_type} circuit={self.circuit_state}>"

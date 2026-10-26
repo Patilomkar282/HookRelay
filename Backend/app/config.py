@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -54,6 +54,42 @@ class Settings(BaseSettings):
     ALLOW_PRIVATE_TARGETS: bool = True  # Allowed in local development for testing local mock servers
     EVENT_RETENTION_DAYS: int = 30
     INGEST_RATE_LIMIT_PER_MINUTE: int = 120
+
+    # Circuit Breaker Configuration
+    CB_FAILURE_THRESHOLD: int = 10
+    CB_BASE_COOLDOWN_S: int = 120
+    CB_MAX_COOLDOWN_S: int = 1800
+    CB_PROBE_TTL_S: int = 30   # HTTP timeout (10s) + safety margin
+
+    # Fernet Encryption Key (Required: boot fails if missing or invalid)
+    ENCRYPTION_KEY: str
+
+    @field_validator("ENCRYPTION_KEY")
+    @classmethod
+    def validate_encryption_key(cls, v: str) -> str:
+        if not v or not str(v).strip():
+            raise ValueError("ENCRYPTION_KEY is required and cannot be empty")
+        key_str = str(v).strip()
+        from cryptography.fernet import Fernet
+        try:
+            Fernet(key_str.encode())
+        except Exception as e:
+            raise ValueError(f"Invalid Fernet ENCRYPTION_KEY: {e}")
+        return key_str
+
+    # Email & Alerts
+    EMAIL_API_KEY: Optional[str] = None
+    EMAIL_FROM: Optional[str] = "alerts@hookrelay.dev"
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Feature switches
+    FEATURE_ALERTS: bool = True
+    FEATURE_TUNNEL: bool = True
+    FEATURE_RULES: bool = True
+
+    # Alert User Limits & Retention
+    ALERT_USER_HOURLY_LIMIT: int = 30
+    RETENTION_DAYS: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -114,8 +114,15 @@ async def update_endpoint(
         endpoint.description = update_in.description.strip() if update_in.description else None
     if update_in.custom_signature_header is not None:
         endpoint.custom_signature_header = update_in.custom_signature_header.strip() if update_in.custom_signature_header else None
+    target_url_changed = False
     if update_in.target_url is not None:
-        endpoint.target_url = validate_target_url(str(update_in.target_url))
+        new_target_url = validate_target_url(str(update_in.target_url))
+        if new_target_url != endpoint.target_url:
+            endpoint.target_url = new_target_url
+            target_url_changed = True
+            from app.services import circuit_breaker
+            await circuit_breaker.reset(db, endpoint.id, reason="target_changed")
+
     if update_in.provider_type is not None:
         endpoint.provider_type = update_in.provider_type.strip() if update_in.provider_type else "custom"
     if update_in.is_active is not None:
@@ -123,7 +130,54 @@ async def update_endpoint(
 
     await db.commit()
     await db.refresh(endpoint)
+
+    if target_url_changed:
+        try:
+            from app.services.websocket_manager import ws_manager
+            await ws_manager.send_to_user(
+                str(user_id),
+                {
+                    "type": "circuit_changed",
+                    "endpoint_id": str(endpoint.id),
+                    "circuit_state": "closed",
+                },
+            )
+        except Exception:
+            pass
+
     return endpoint
+
+
+async def get_endpoint_circuit_events(
+    db: AsyncSession,
+    user_id: str,
+    endpoint_id: str,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Retrieve paginated audit trail of circuit events for an owned endpoint."""
+    endpoint = await get_user_endpoint_by_id(db, user_id, endpoint_id)
+    from app.models.circuit_event import CircuitEvent
+
+    total_stmt = select(func.count(CircuitEvent.id)).where(CircuitEvent.endpoint_id == endpoint_id)
+    total = (await db.execute(total_stmt)).scalar_one() or 0
+
+    events_stmt = (
+        select(CircuitEvent)
+        .where(CircuitEvent.endpoint_id == endpoint_id)
+        .order_by(CircuitEvent.created_at.desc(), CircuitEvent.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    res = await db.execute(events_stmt)
+    items = list(res.scalars().all())
+
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 async def delete_endpoint(

@@ -59,6 +59,8 @@ async def get_stats_summary(
             p95_latency_ms=0.0,
             avg_latency_ms=0.0,
             events_per_hour=0.0,
+            circuits_open=0,
+            deliveries_held=0,
             top_failure_reasons=[],
         )
 
@@ -148,6 +150,25 @@ async def get_stats_summary(
         for row in failure_res.all()
     ]
 
+    # 6. Circuit breaker stats
+    circuits_open_stmt = select(func.count(Endpoint.id)).where(
+        Endpoint.id.in_(ep_ids),
+        Endpoint.circuit_state == "open",
+    )
+    circuits_open = (await db.execute(circuits_open_stmt)).scalar_one() or 0
+
+    deliveries_held_stmt = (
+        select(func.count(Delivery.id))
+        .join(Event, Delivery.event_id == Event.id)
+        .join(Endpoint, Event.endpoint_id == Endpoint.id)
+        .where(
+            Endpoint.id.in_(ep_ids),
+            Endpoint.circuit_state == "open",
+            Delivery.status.in_(["pending", "retrying"]),
+        )
+    )
+    deliveries_held = (await db.execute(deliveries_held_stmt)).scalar_one() or 0
+
     return StatsSummaryResponse(
         total_events=total_events,
         total_deliveries=total_deliveries,
@@ -159,8 +180,11 @@ async def get_stats_summary(
         p95_latency_ms=p95_latency,
         avg_latency_ms=avg_latency,
         events_per_hour=events_per_hour,
+        circuits_open=circuits_open,
+        deliveries_held=deliveries_held,
         top_failure_reasons=top_failures,
     )
+
 
 
 async def get_stats_timeseries(

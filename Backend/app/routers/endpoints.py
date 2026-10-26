@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.endpoint import EndpointCreate, EndpointUpdate, EndpointOut
 from app.schemas.event import PaginatedEvents
 from app.schemas.delivery import BulkReplayResponse
+from app.schemas.circuit_event import PaginatedCircuitEvents
 from app.services.endpoint_service import (
     create_endpoint,
     get_user_endpoints,
@@ -15,9 +16,12 @@ from app.services.endpoint_service import (
     update_endpoint,
     delete_endpoint,
     rotate_signing_secret,
+    get_endpoint_circuit_events,
 )
 from app.services.event_service import get_events_for_endpoint
 from app.services.delivery_service import replay_failed_endpoint_deliveries
+from app.services import circuit_breaker
+from app.services.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/endpoints", tags=["Endpoints"])
 
@@ -158,4 +162,61 @@ async def replay_failed_deliveries(
         replayed_count=replayed_count,
         message=f"Successfully replayed {replayed_count} failed deliveries",
     )
+
+
+@router.post(
+    "/{id}/circuit/reset",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Reset circuit breaker to closed state",
+)
+async def reset_circuit(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Manually resume a paused endpoint circuit breaker.
+    Owner only: returns 404 for other users.
+    Resets circuit_state to 'closed', clears failure counters, and broadcasts live state update.
+    """
+    endpoint = await get_user_endpoint_by_id(db, current_user.id, id)
+    await circuit_breaker.reset(db, endpoint.id, reason="manual_reset")
+    await db.commit()
+    try:
+        await ws_manager.send_to_user(
+            str(current_user.id),
+            {
+                "type": "circuit_changed",
+                "endpoint_id": str(endpoint.id),
+                "circuit_state": "closed",
+            },
+        )
+    except Exception:
+        pass
+
+
+@router.get(
+    "/{id}/circuit-events",
+    response_model=PaginatedCircuitEvents,
+    summary="Get paginated circuit events audit trail for an endpoint",
+)
+async def list_circuit_events(
+    id: str,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieve audit trail of state transitions for this endpoint.
+    Owner only: returns 404 for other users. Newest events returned first.
+    """
+    return await get_endpoint_circuit_events(
+        db=db,
+        user_id=current_user.id,
+        endpoint_id=id,
+        limit=limit,
+        offset=offset,
+    )
+
 

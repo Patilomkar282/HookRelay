@@ -8,6 +8,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.endpoint import Endpoint
     from app.models.api_key import ApiKey
+    from app.models.alert import AlertChannel
 
 
 class User(Base):
@@ -60,6 +61,11 @@ class User(Base):
     )
     api_keys: Mapped[list["ApiKey"]] = relationship(
         "ApiKey",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    alert_channels: Mapped[list["AlertChannel"]] = relationship(
+        "AlertChannel",
         back_populates="user",
         cascade="all, delete-orphan",
     )

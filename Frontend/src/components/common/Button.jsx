@@ -23,8 +23,12 @@ export const Button = ({
   const variantClasses = {
     primary:
       'bg-gray-900 hover:bg-gray-800 text-white shadow-xs focus:ring-gray-900',
+    indigo:
+      'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs focus:ring-indigo-500',
     secondary:
-      'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-xs focus:ring-gray-400',
+      'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-2xs hover:border-gray-300 focus:ring-gray-300',
+    outline:
+      'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-2xs hover:border-gray-300 focus:ring-gray-300',
     ghost:
       'text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:ring-gray-400',
     danger:

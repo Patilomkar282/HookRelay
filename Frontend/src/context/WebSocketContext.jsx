@@ -109,6 +109,25 @@ export const WebSocketProvider = ({ children }) => {
               };
             }
           );
+        } else if (msg.type === 'circuit_changed') {
+          // Live update: flip endpoint badge immediately in cache
+          queryClient.setQueryData(['endpoints'], (old) => {
+            if (!Array.isArray(old)) return old;
+            return old.map((ep) => {
+              if (ep.id === msg.endpoint_id) {
+                return {
+                  ...ep,
+                  circuit_state: msg.circuit_state,
+                };
+              }
+              return ep;
+            });
+          });
+
+          // Invalidate cache to fetch new cooldown timestamp and stats
+          queryClient.invalidateQueries({ queryKey: ['endpoints'] });
+          queryClient.invalidateQueries({ queryKey: ['statsSummary'] });
+          queryClient.invalidateQueries({ queryKey: ['circuitEvents', msg.endpoint_id] });
         }
       } catch {
         // Plain string message or ping

@@ -22,6 +22,7 @@ import {
   Activity,
   Server,
   Layers,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const OverviewView = ({
@@ -42,6 +43,7 @@ export const OverviewView = ({
     (acc, ep) => acc + (ep.events_count || 0),
     0
   );
+  const openCircuitsCount = endpoints.filter((e) => e.circuit_state === 'open').length;
 
   const primaryEndpoint = endpoints[0] || null;
   const apiBase = import.meta.env.VITE_API_URL;
@@ -138,6 +140,31 @@ export const OverviewView = ({
           <Hero3DVisualizer />
         </div>
       </div>
+
+      {/* Circuit Breaker Alert Banner */}
+      {openCircuitsCount > 0 && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <span className="p-2 bg-red-100 rounded-lg text-red-600 shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-red-900">
+                {openCircuitsCount} Destination Mailbox{openCircuitsCount > 1 ? 'es' : ''} Currently Paused
+              </p>
+              <p className="text-[11px] text-red-700 mt-0.5">
+                The circuit breaker has paused delivery to protect struggling destination servers. Queued webhooks are held safely.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('endpoints')}
+            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer text-center"
+          >
+            Manage Mailboxes
+          </button>
+        </div>
+      )}
 
       {/* Metrics Row (4 Columns Full Width) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

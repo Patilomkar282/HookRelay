@@ -51,6 +51,10 @@ class Delivery(Base):
         Text,
         nullable=True,
     )
+    error_kind: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+    )
     latency_ms: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
@@ -76,6 +80,11 @@ class Delivery(Base):
 
     # Relationships
     event: Mapped["Event"] = relationship("Event", back_populates="deliveries")
+    attempts: Mapped[list["DeliveryAttempt"]] = relationship(
+        "DeliveryAttempt",
+        back_populates="delivery",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Delivery id={self.id} status={self.status} attempt={self.attempt_count}>"

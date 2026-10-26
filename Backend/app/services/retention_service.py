@@ -27,16 +27,24 @@ async def purge_expired_events(
         res = await db.execute(stmt)
         expired_ids = list(res.scalars().all())
 
-        if not expired_ids:
-            return 0
+        if expired_ids:
+            # 2. Delete associated deliveries
+            del_stmt = delete(Delivery).where(Delivery.event_id.in_(expired_ids))
+            await db.execute(del_stmt)
 
-        # 2. Delete associated deliveries
-        del_stmt = delete(Delivery).where(Delivery.event_id.in_(expired_ids))
-        await db.execute(del_stmt)
+            # 3. Delete expired events
+            event_del_stmt = delete(Event).where(Event.id.in_(expired_ids))
+            await db.execute(event_del_stmt)
 
-        # 3. Delete expired events
-        event_del_stmt = delete(Event).where(Event.id.in_(expired_ids))
-        await db.execute(event_del_stmt)
+        # 4. Delete expired delivery attempts older than retention period
+        from app.models.delivery_attempt import DeliveryAttempt
+        att_del_stmt = delete(DeliveryAttempt).where(DeliveryAttempt.attempted_at < cutoff)
+        await db.execute(att_del_stmt)
+
+        # 5. Delete expired alert events older than retention period
+        from app.models.alert import AlertEvent
+        alert_del_stmt = delete(AlertEvent).where(AlertEvent.created_at < cutoff)
+        await db.execute(alert_del_stmt)
 
         await db.commit()
         logger.info("Purged %d expired events older than %d days (cutoff: %s)", len(expired_ids), days, cutoff)

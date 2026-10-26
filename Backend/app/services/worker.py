@@ -15,6 +15,7 @@ class DeliveryWorker:
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
         self._last_retention_run = 0.0
+        self._last_alert_eval_run = 0.0
 
     async def run(self) -> None:
         logger.info("HookRelay delivery worker started (poll_interval=%.1fs)...", self.poll_interval)
@@ -25,8 +26,18 @@ class DeliveryWorker:
                     if processed > 0:
                         logger.debug("Dispatched %d due deliveries", processed)
 
-                    # Periodically run retention cleanup (once every hour)
                     now_ts = time.time()
+
+                    # Periodically evaluate firing alert rules (once every 60s)
+                    if now_ts - self._last_alert_eval_run > 60:
+                        self._last_alert_eval_run = now_ts
+                        try:
+                            from app.services.alert_evaluator import check_firing_rules_periodic
+                            await check_firing_rules_periodic(session)
+                        except Exception as e:
+                            logger.warning("Periodic alert evaluation error: %s", e)
+
+                    # Periodically run retention cleanup (once every hour)
                     if now_ts - self._last_retention_run > 3600:
                         self._last_retention_run = now_ts
                         await purge_expired_events(session)

@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -9,8 +9,9 @@ from app.core.security import hash_password, verify_password
 
 async def register_user(db: AsyncSession, user_in: UserCreate) -> User:
     """Register a new user, ensuring unique email and hashed password."""
+    normalized_email = user_in.email.strip().lower()
     # Check if email is already taken
-    stmt = select(User).where(User.email == user_in.email)
+    stmt = select(User).where(func.lower(User.email) == normalized_email)
     result = await db.execute(stmt)
     existing_user = result.scalar_one_or_none()
 
@@ -23,7 +24,7 @@ async def register_user(db: AsyncSession, user_in: UserCreate) -> User:
     # Hash password and save
     hashed = hash_password(user_in.password)
     user = User(
-        email=user_in.email,
+        email=normalized_email,
         password_hash=hashed,
     )
     db.add(user)
@@ -34,7 +35,8 @@ async def register_user(db: AsyncSession, user_in: UserCreate) -> User:
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
     """Authenticate user with email and password, returning user or raising 401."""
-    stmt = select(User).where(User.email == email)
+    normalized_email = email.strip().lower()
+    stmt = select(User).where(func.lower(User.email) == normalized_email)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 

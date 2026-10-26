@@ -109,6 +109,19 @@ export const rotateSigningSecret = async (id) => {
   return response.data;
 };
 
+// Circuit Breaker Management APIs
+export const resetCircuit = async (id) => {
+  const response = await apiClient.post(`/endpoints/${id}/circuit/reset`);
+  return response.data;
+};
+
+export const fetchCircuitEvents = async (id, { limit = 20, offset = 0 } = {}) => {
+  const response = await apiClient.get(`/endpoints/${id}/circuit-events`, {
+    params: { limit, offset },
+  });
+  return response.data;
+};
+
 // Webhook Ingest & Event Observability APIs
 export const fetchEndpointEvents = async (
   id,
@@ -220,6 +233,64 @@ export const purgeEventsApi = async () => {
 
 export const deleteAccountApi = async (password) => {
   const response = await apiClient.post('/auth/danger/delete-account', { password });
+  return response.data;
+};
+
+// Alert Channels APIs
+export const fetchAlertChannels = async () => {
+  const response = await apiClient.get('/alert-channels');
+  return response.data;
+};
+
+export const createAlertChannel = async (data) => {
+  const response = await apiClient.post('/alert-channels', data);
+  return response.data;
+};
+
+export const testAlertChannel = async (id) => {
+  const response = await apiClient.post(`/alert-channels/${id}/test`);
+  return response.data;
+};
+
+export const verifyAlertChannel = async ({ id, code }) => {
+  const response = await apiClient.post(`/alert-channels/${id}/verify`, { code });
+  return response.data;
+};
+
+export const deleteAlertChannel = async (id) => {
+  const response = await apiClient.delete(`/alert-channels/${id}`);
+  return response.data;
+};
+
+// Alert Rules APIs
+export const fetchAlertRules = async (endpointId = null) => {
+  const url = endpointId ? `/alert-rules?endpoint_id=${endpointId}` : '/alert-rules';
+  const response = await apiClient.get(url);
+  return response.data;
+};
+
+export const createAlertRule = async (data) => {
+  const response = await apiClient.post('/alert-rules', data);
+  return response.data;
+};
+
+export const updateAlertRule = async (id, data) => {
+  const response = await apiClient.patch(`/alert-rules/${id}`, data);
+  return response.data;
+};
+
+export const deleteAlertRule = async (id) => {
+  const response = await apiClient.delete(`/alert-rules/${id}`);
+  return response.data;
+};
+
+// Alert Events (History & Outbox) APIs
+export const fetchAlertEvents = async (endpointId = null, page = 1, limit = 20) => {
+  const params = { page, limit };
+  if (endpointId) {
+    params.endpoint_id = endpointId;
+  }
+  const response = await apiClient.get('/alert-events', { params });
   return response.data;
 };
 

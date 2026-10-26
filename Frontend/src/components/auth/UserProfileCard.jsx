@@ -36,15 +36,23 @@ import {
   Activity,
   Server,
   Zap,
-  Mail,
   ShieldCheck,
+  Bell,
+  LayoutGrid,
+  ShieldAlert,
+  History,
 } from 'lucide-react';
+import AlertChannelsTab from '../alerts/AlertChannelsTab';
+import AlertRulesTab from '../alerts/AlertRulesTab';
+import AlertHistoryTab from '../alerts/AlertHistoryTab';
 
 export const UserProfileCard = () => {
   const { user, logout, refreshUser } = useAuth();
 
-  // Active settings tab: 'profile' | 'apikeys' | 'delivery' | 'danger'
+  // Active settings tab: 'profile' | 'channels' | 'apikeys' | 'delivery' | 'danger'
   const [activeTab, setActiveTab] = useState('profile');
+  const [alertSubTab, setAlertSubTab] = useState('rules'); // 'rules' | 'channels'
+
 
   // Architecture & Health modal state
   const [showArchModal, setShowArchModal] = useState(false);
@@ -53,6 +61,7 @@ export const UserProfileCard = () => {
 
   // Status message banners
   const [banner, setBanner] = useState(null); // { type: 'success' | 'error', message: '' }
+
 
   const showMessage = (message, type = 'success') => {
     setBanner({ message, type });
@@ -330,11 +339,10 @@ console.log(mailboxes);`;
       {/* Top Banner Message */}
       {banner && (
         <div
-          className={`p-4 rounded-lg border text-xs font-medium flex items-center justify-between transition-all ${
-            banner.type === 'success'
+          className={`p-4 rounded-lg border text-xs font-medium flex items-center justify-between transition-all ${banner.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : 'bg-red-50 text-red-800 border-red-200'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {banner.type === 'success' ? (
@@ -393,11 +401,10 @@ console.log(mailboxes);`;
         <div className="flex flex-wrap items-center gap-2 pt-6">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'profile'
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'profile'
                 ? 'bg-gray-900 text-white shadow-xs font-semibold'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <User className="w-4 h-4" />
             <span>Profile &amp; Password</span>
@@ -405,23 +412,32 @@ console.log(mailboxes);`;
 
           <button
             onClick={() => setActiveTab('apikeys')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'apikeys'
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'apikeys'
                 ? 'bg-gray-900 text-white shadow-xs font-semibold'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Key className="w-4 h-4" />
             <span>API Keys</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('delivery')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'delivery'
+            onClick={() => setActiveTab('channels')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer ${activeTab === 'channels'
                 ? 'bg-gray-900 text-white shadow-xs font-semibold'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
+              }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Outage Alerts</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('delivery')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'delivery'
+                ? 'bg-gray-900 text-white shadow-xs font-semibold'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
           >
             <Sliders className="w-4 h-4" />
             <span>Delivery Defaults</span>
@@ -429,11 +445,10 @@ console.log(mailboxes);`;
 
           <button
             onClick={() => setActiveTab('danger')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'danger'
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'danger'
                 ? 'bg-red-50 text-red-700 border border-red-200 font-semibold'
                 : 'text-gray-600 hover:text-red-600 hover:bg-red-50/50'
-            }`}
+              }`}
           >
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <span>Danger Zone</span>
@@ -674,25 +689,22 @@ console.log(mailboxes);`;
                 <div className="flex items-center bg-gray-800 p-0.5 rounded text-[11px]">
                   <button
                     onClick={() => setSnippetLang('curl')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      snippetLang === 'curl' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
-                    }`}
+                    className={`px-2.5 py-1 rounded transition-colors ${snippetLang === 'curl' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
+                      }`}
                   >
                     cURL
                   </button>
                   <button
                     onClick={() => setSnippetLang('python')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      snippetLang === 'python' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
-                    }`}
+                    className={`px-2.5 py-1 rounded transition-colors ${snippetLang === 'python' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
+                      }`}
                   >
                     Python
                   </button>
                   <button
                     onClick={() => setSnippetLang('nodejs')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      snippetLang === 'nodejs' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
-                    }`}
+                    className={`px-2.5 py-1 rounded transition-colors ${snippetLang === 'nodejs' ? 'bg-gray-700 text-white font-medium' : 'text-gray-400 hover:text-gray-200'
+                      }`}
                   >
                     Node.js
                   </button>
@@ -724,6 +736,84 @@ console.log(mailboxes);`;
               Both <code className="text-gray-200 font-mono">Authorization: Bearer hr_live_...</code> and <code className="text-gray-200 font-mono">X-API-Key: hr_live_...</code> headers are supported.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ========================================================= */}
+      {/* TAB: Outage Alerts & Notification Channels               */}
+      {/* ========================================================= */}
+      {activeTab === 'channels' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-xs space-y-6">
+          {/* Sub-tab Navigation */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+            <div className="inline-flex p-1 bg-gray-100/90 rounded-xl border border-gray-200/60 shadow-2xs">
+              <button
+                onClick={() => setAlertSubTab('all')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  alertSubTab === 'all'
+                    ? 'bg-white text-gray-900 font-semibold shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5 text-gray-500" />
+                <span>All in One</span>
+              </button>
+
+              <button
+                onClick={() => setAlertSubTab('rules')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  alertSubTab === 'rules'
+                    ? 'bg-white text-rose-700 font-semibold shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                <span>Alert Rules</span>
+              </button>
+
+              <button
+                onClick={() => setAlertSubTab('channels')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  alertSubTab === 'channels'
+                    ? 'bg-white text-indigo-700 font-semibold shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Channels</span>
+              </button>
+
+              <button
+                onClick={() => setAlertSubTab('history')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  alertSubTab === 'history'
+                    ? 'bg-white text-amber-700 font-semibold shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <History className="w-3.5 h-3.5 text-amber-500" />
+                <span>Alert History</span>
+              </button>
+            </div>
+          </div>
+
+          {alertSubTab === 'all' && (
+            <div className="space-y-8">
+              <div>
+                <AlertChannelsTab user={user} showMessage={showMessage} />
+              </div>
+              <div className="pt-6 border-t border-gray-100">
+                <AlertRulesTab showMessage={showMessage} />
+              </div>
+              <div className="pt-6 border-t border-gray-100">
+                <AlertHistoryTab showMessage={showMessage} />
+              </div>
+            </div>
+          )}
+          {alertSubTab === 'rules' && <AlertRulesTab showMessage={showMessage} />}
+          {alertSubTab === 'channels' && <AlertChannelsTab user={user} showMessage={showMessage} />}
+          {alertSubTab === 'history' && <AlertHistoryTab showMessage={showMessage} />}
         </div>
       )}
 
@@ -769,11 +859,10 @@ console.log(mailboxes);`;
                     key={preset.value}
                     type="button"
                     onClick={() => setRetryAttempts(preset.value)}
-                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                      Number(retryAttempts) === preset.value
+                    className={`px-2.5 py-1 rounded text-xs transition-colors ${Number(retryAttempts) === preset.value
                         ? 'bg-gray-900 text-white font-medium'
                         : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                    }`}
+                      }`}
                   >
                     {preset.label}
                   </button>
@@ -824,11 +913,10 @@ console.log(mailboxes);`;
                     key={preset.value}
                     type="button"
                     onClick={() => setDeliveryTimeout(preset.value)}
-                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                      Number(deliveryTimeout) === preset.value
+                    className={`px-2.5 py-1 rounded text-xs transition-colors ${Number(deliveryTimeout) === preset.value
                         ? 'bg-gray-900 text-white font-medium'
                         : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                    }`}
+                      }`}
                   >
                     {preset.label}
                   </button>

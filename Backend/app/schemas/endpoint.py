@@ -35,5 +35,11 @@ class EndpointOut(BaseModel):
     created_at: datetime
     events_count: Optional[int] = 0
 
+    # Circuit Breaker state
+    circuit_state: str = "closed"
+    consecutive_failures: int = 0
+    open_count: int = 0
+    circuit_open_until: Optional[datetime] = None
+
     model_config = ConfigDict(from_attributes=True)
 

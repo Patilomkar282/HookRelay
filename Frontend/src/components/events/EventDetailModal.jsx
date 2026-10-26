@@ -51,6 +51,11 @@ export const EventDetailModal = ({ eventId, onClose }) => {
     refetchInterval: 3000,
   });
 
+  // Check if destination endpoint circuit is currently open/paused
+  const endpointsCache = queryClient.getQueryData(['endpoints']) || [];
+  const endpoint = endpointsCache.find((ep) => ep.id === event?.endpoint_id);
+  const isCircuitOpen = endpoint?.circuit_state === 'open';
+
   // 3. Replay Mutation
   const replayMutation = useMutation({
     mutationFn: () => replayEvent(eventId),
@@ -271,12 +276,15 @@ export const EventDetailModal = ({ eventId, onClose }) => {
                         const isDelivered = del.status === 'delivered';
                         const isRetrying = del.status === 'retrying';
                         const isFailed = del.status === 'failed';
+                        const isHeld = isCircuitOpen && (del.status === 'pending' || del.status === 'retrying');
 
                         return (
                           <div
                             key={del.id}
                             className={`p-4 rounded-xl border transition-all ${
-                              isDelivered
+                              isHeld
+                                ? 'bg-red-50/40 border-red-200'
+                                : isDelivered
                                 ? 'bg-emerald-50/40 border-emerald-200'
                                 : isFailed
                                 ? 'bg-red-50/40 border-red-200'
@@ -289,7 +297,9 @@ export const EventDetailModal = ({ eventId, onClose }) => {
                               <div className="flex items-center gap-2">
                                 <Badge
                                   status={
-                                    isDelivered
+                                    isHeld
+                                      ? 'warning'
+                                      : isDelivered
                                       ? 'delivered'
                                       : isFailed
                                       ? 'failed'
@@ -297,7 +307,7 @@ export const EventDetailModal = ({ eventId, onClose }) => {
                                       ? 'retrying'
                                       : 'pending'
                                   }
-                                  label={del.status.toUpperCase()}
+                                  label={isHeld ? 'HELD' : del.status.toUpperCase()}
                                 />
                                 <span className="text-xs font-mono font-medium text-gray-700">
                                   Attempt {del.attempt_count} of 5
@@ -335,11 +345,15 @@ export const EventDetailModal = ({ eventId, onClose }) => {
                                 <span>
                                   Created: {new Date(del.created_at).toLocaleTimeString()}
                                 </span>
-                                {del.next_attempt_at && (
+                                {isHeld ? (
+                                  <span className="font-semibold text-red-700 bg-red-100/80 px-2 py-0.5 rounded border border-red-200">
+                                    Held: destination paused, next try after {endpoint?.circuit_open_until ? new Date(endpoint.circuit_open_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (del.next_attempt_at ? new Date(del.next_attempt_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+                                  </span>
+                                ) : del.next_attempt_at ? (
                                   <span className="font-medium text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded">
                                     Next retry scheduled: {new Date(del.next_attempt_at).toLocaleTimeString()}
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                             </div>
                           </div>
