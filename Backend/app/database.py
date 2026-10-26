@@ -42,7 +42,7 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-        is_postgres = (conn.dialect.name == "postgresql")
+        is_postgres = ("postgres" in conn.dialect.name.lower())
         if is_postgres:
             # Endpoints table migrations
             await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS name VARCHAR(128);"))

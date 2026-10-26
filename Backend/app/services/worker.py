@@ -16,10 +16,12 @@ class DeliveryWorker:
         self._stop_event = asyncio.Event()
         self._last_retention_run = 0.0
         self._last_alert_eval_run = 0.0
+        self._consecutive_errors = 0
 
     async def run(self) -> None:
         logger.info("HookRelay delivery worker started (poll_interval=%.1fs)...", self.poll_interval)
         while not self._stop_event.is_set():
+            delay = self.poll_interval
             try:
                 async with AsyncSessionLocal() as session:
                     processed = await fetch_and_process_due_deliveries(session, batch_size=10)
@@ -41,13 +43,31 @@ class DeliveryWorker:
                     if now_ts - self._last_retention_run > 3600:
                         self._last_retention_run = now_ts
                         await purge_expired_events(session)
+
+                # Reset consecutive error count on clean run
+                if self._consecutive_errors > 0:
+                    logger.info("Delivery worker recovered successfully after %d errors.", self._consecutive_errors)
+                    self._consecutive_errors = 0
+
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.error("Unexpected error in delivery worker: %s", exc)
+                self._consecutive_errors += 1
+                # Exponential backoff on errors: 2s, 4s, 8s, up to 15s max
+                delay = min(15.0, 1.0 + (2.0 ** min(self._consecutive_errors, 4)))
+                # Throttle log spam: log on 1st error, then every 10th error or every 30s
+                if self._consecutive_errors == 1 or self._consecutive_errors % 10 == 0:
+                    logger.error(
+                        "Delivery worker error (consecutive errors: %d, backoff: %.1fs): %s",
+                        self._consecutive_errors,
+                        delay,
+                        exc,
+                    )
+                else:
+                    logger.debug("Delivery worker error suppressed (consecutive errors: %d): %s", self._consecutive_errors, exc)
 
             try:
-                await asyncio.wait_for(self._stop_event.wait(), timeout=self.poll_interval)
+                await asyncio.wait_for(self._stop_event.wait(), timeout=delay)
             except asyncio.TimeoutError:
                 pass
 
