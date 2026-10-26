@@ -36,15 +36,30 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Create all registered tables in the database if they do not exist."""
+    """Create all registered tables and apply non-destructive schema migrations."""
+    import app.models  # Ensure all SQLAlchemy models are registered on Base.metadata
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Ensure migration columns exist on endpoints table
-        await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS name VARCHAR(128);"))
-        await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS description TEXT;"))
-        await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS custom_signature_header VARCHAR(128);"))
-        # Ensure migration columns exist on users table
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS retry_attempts INTEGER DEFAULT 3;"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS delivery_timeout INTEGER DEFAULT 15;"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_alerts BOOLEAN DEFAULT TRUE;"))
+
+        is_postgres = (conn.dialect.name == "postgresql")
+        if is_postgres:
+            # Endpoints table migrations
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS name VARCHAR(128);"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS description TEXT;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS custom_signature_header VARCHAR(128);"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS circuit_state VARCHAR(10) DEFAULT 'closed';"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS consecutive_failures INTEGER DEFAULT 0;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS open_count INTEGER DEFAULT 0;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS circuit_open_until TIMESTAMP WITH TIME ZONE;"))
+            await conn.execute(text("ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS probe_started_at TIMESTAMP WITH TIME ZONE;"))
+            await conn.execute(text("UPDATE endpoints SET circuit_state = 'closed' WHERE circuit_state IS NULL;"))
+
+            # Users table migrations
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS retry_attempts INTEGER DEFAULT 3;"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS delivery_timeout INTEGER DEFAULT 15;"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_alerts BOOLEAN DEFAULT TRUE;"))
+
+            # Deliveries table migrations
+            await conn.execute(text("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS error_kind VARCHAR(64);"))
